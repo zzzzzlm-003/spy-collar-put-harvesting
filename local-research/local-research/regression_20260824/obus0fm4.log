@@ -1,0 +1,403 @@
+[2026-08-24 09:20:36,034] [merq.config] [INFO] [62293] MERQ_ENV: None
+[2026-08-24 09:20:36,034] [merq.config] [INFO] [62293] MERQ_TEMPLATED_DAG: None
+[2026-08-24 09:20:36,034] [merq.config] [INFO] [62293] Running environment: production
+[2026-08-24 09:20:36,034] [merq.config] [INFO] [62293] is_prod_env() evaluated to False
+/Users/luomengzhou/Library/Caches/pypoetry/virtualenvs/merq-YPsgvTkp-py3.10/lib/python3.10/site-packages/fastapi/applications.py:18: StarletteDeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated. Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead.
+  from fastapi.exception_handlers import (
+/Users/luomengzhou/Library/Caches/pypoetry/virtualenvs/merq-YPsgvTkp-py3.10/lib/python3.10/site-packages/fastapi/applications.py:30: StarletteDeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated. Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead.
+  from fastapi.openapi.utils import get_openapi
+/Users/luomengzhou/Projects/dev-put-harvesting/python/merq/util/corax_util.py:210: FutureWarning: The default dtype for empty Series will be 'object' instead of 'float64' in a future version. Specify a dtype explicitly to silence this warning.
+  raw_data = pd.Series()  # used to hold on to the raw event for populating the corax data collection
+/Users/luomengzhou/Projects/dev-put-harvesting/python/merq/indices/merqube/options/datatypes/custom_option_pricer.py:84: UserWarning: Field name "adjusted_price" in "CustomOptionPrice" shadows an attribute in parent "BasePrice"
+  class CustomOptionPrice(BasePrice):
+[2026-08-24 09:20:37,236] [merqutil.auth_web] [DEBUG] [62293] Creating new session for prefix_url: https://api.merqube.com
+[2026-08-24 09:20:37,236] [merqutil.auth_web] [DEBUG] [62293] No explicit api key or username_password passed, Looking for `apikey` in credentials file
+[2026-08-24 09:20:37,236] [merqutil.secrets] [DEBUG] [62293] File /Users/luomengzhou/.merq_creds will be read as secret.
+[2026-08-24 09:20:37,236] [merqutil.auth_web] [DEBUG] [62293] APIKey not found in creds file, will fall back to oauth
+[2026-08-24 09:20:37,236] [merqutil.auth_web] [DEBUG] [62293] Trying to make oauth session
+[2026-08-24 09:20:37,237] [merqutil.secrets] [DEBUG] [62293] File /Users/luomengzhou/.merq_creds will be read as secret.
+[2026-08-24 09:20:37,237] [merqutil.auth_web] [WARNING] [62293] User session not possible, falling back to machine session
+[2026-08-24 09:20:37,237] [merqutil.secrets] [DEBUG] [62293] Fetching secret machine_api_keys from AWS (non-cached)
+[2026-08-24 09:20:37,368] [merqube_client_lib.session] [DEBUG] [62293] Performing GET on https://api.merqube.com/index?name=OBUS0FM4
+/Users/luomengzhou/Library/Caches/pypoetry/virtualenvs/merq-YPsgvTkp-py3.10/lib/python3.10/site-packages/pydantic/_internal/_generate_schema.py:2249: UnsupportedFieldAttributeWarning: The 'default' attribute with value None was provided to the `Field()` function, which has no effect in the context it was used. 'default' is field-specific metadata, and can only be attached to a model field using `Annotated` metadata or by assignment. This may have happened because an `Annotated` type alias using the `type` statement was used, or if the `Field()` function was attached to a single member of a union type.
+  warnings.warn(
+/Users/luomengzhou/Library/Caches/pypoetry/virtualenvs/merq-YPsgvTkp-py3.10/lib/python3.10/site-packages/pydantic/_internal/_generate_schema.py:2249: UnsupportedFieldAttributeWarning: The 'validate_default' attribute with value True was provided to the `Field()` function, which has no effect in the context it was used. 'validate_default' is field-specific metadata, and can only be attached to a model field using `Annotated` metadata or by assignment. This may have happened because an `Annotated` type alias using the `type` statement was used, or if the `Field()` function was attached to a single member of a union type.
+  warnings.warn(
+[2026-08-24 09:20:37,908] [merqutil.auth_web] [DEBUG] [62293] Creating new session for prefix_url: None
+[2026-08-24 09:20:37,908] [merqutil.auth_web] [DEBUG] [62293] No explicit api key or username_password passed, Looking for `apikey` in credentials file
+[2026-08-24 09:20:37,908] [merqutil.secrets] [DEBUG] [62293] File /Users/luomengzhou/.merq_creds will be read as secret.
+[2026-08-24 09:20:37,908] [merqutil.auth_web] [DEBUG] [62293] APIKey not found in creds file, will fall back to oauth
+[2026-08-24 09:20:37,908] [merqutil.auth_web] [DEBUG] [62293] Trying to make oauth session
+[2026-08-24 09:20:37,908] [merqutil.secrets] [DEBUG] [62293] File /Users/luomengzhou/.merq_creds will be read as secret.
+[2026-08-24 09:20:37,908] [merqutil.auth_web] [WARNING] [62293] User session not possible, falling back to machine session
+[2026-08-24 09:20:37,909] [merqutil.holidays] [DEBUG] [62293] Forming calendar with mics: ['XNYS'], futures roots: [], mqi indices: [], and overlays: []
+[2026-08-24 09:20:37,909] [merqube_client_lib.session] [DEBUG] [62293] Performing GET on https://api.merqube.com/security
+[2026-08-24 09:20:37,971] [merqube_client_lib.session] [DEBUG] [62293] Performing GET on https://api.merqube.com/security/exchange?metrics=closed.edi,closed.factset,closed.override,closed.merq&names=XNYS&ids=&start_date=1948-01-01T00:00:00&end_date=2202-12-31T00:00:00
+[2026-08-24 09:20:38,296] [merq.merq_platform.api.indices.multi_asset.multi_asset_base_index] [DEBUG] [62293] Successfully initialized OptionStrategiesIndex OBUS0FM4
+[2026-08-24 09:20:38,297] [merqutil.db] [INFO] [62293] creating engine for secret db/production/index-data-store/dev_readonly
+[2026-08-24 09:20:38,298] [merqutil.secrets] [DEBUG] [62293] File /Users/luomengzhou/.merq_creds will be read as secret.
+[2026-08-24 09:20:38,298] [merqutil.secrets] [DEBUG] [62293] Fetching secret db/production/index-data-store/dev_readonly from AWS (non-cached)
+[2026-08-24 09:20:38,433] [merqutil.db] [INFO] [62293] Engine successfully created for db/production/index-data-store/dev_readonly.None at index-data-store-proxy.aws.merqurian.com
+[2026-08-24 09:20:38,762] [merq.merq_platform.api.utils.db_utils] [DEBUG] [62293] running sql load IDS ids_rollout_state records
+[2026-08-24 09:20:38,762] [merq.merq_platform.api.utils.db_utils] [DEBUG] [62293] SELECT ids_platform.ids_rollout_state.index_name, ids_platform.ids_rollout_state.status, ids_platform.ids_rollout_state.notes 
+FROM ids_platform.ids_rollout_state 
+WHERE ids_platform.ids_rollout_state.index_name = 'OBUS0FM4'
+[2026-08-24 09:20:38,792] [merq.merq_platform.api.utils.db_utils] [DEBUG] [62293] 0 rows processed in 0.030s
+[2026-08-24 09:20:38,822] [merq.merq_platform.api.utils.db_utils] [DEBUG] [62293] running sql load IDS ids_migration_states records
+[2026-08-24 09:20:38,822] [merq.merq_platform.api.utils.db_utils] [DEBUG] [62293] SELECT ids_migration.ids_migration_states.index_uuid, ids_migration.ids_migration_states.status, ids_migration.ids_migration_states.run_mode, ids_migration.ids_migration_states.context, ids_migration.ids_migration_states.notes 
+FROM ids_migration.ids_migration_states 
+WHERE ids_migration.ids_migration_states.index_uuid IN ('1c3f00e2-f603-4957-a1a9-60794d2cf2e3')
+ AND ids_migration.ids_migration_states.row_end_ts > '2026-08-24 13:20:38.808577+00:00'
+[2026-08-24 09:20:38,850] [merq.merq_platform.api.utils.db_utils] [DEBUG] [62293] 0 rows processed in 0.028s
+[2026-08-24 09:20:39,067] [merqutil.git_util] [DEBUG] [62293] Using git url: ssh://APKA5CNMQL6O2YITXQ7T@git-codecommit.us-east-1.amazonaws.com/v1/repos/OBUS0FM4
+[2026-08-24 09:20:39,067] [merqutil.git_util] [DEBUG] [62293] Env SSH_KEY_NAME_FOR_CODECOMMIT found; reading private key from secret code_commit_read.
+[2026-08-24 09:20:39,067] [merqutil.git_util] [DEBUG] [62293] Storing key to /tmp/ssh_key_for_codecommit - already exists: False
+[2026-08-24 09:20:39,067] [merqutil.secrets] [DEBUG] [62293] Fetching secret code_commit_read from AWS (non-cached)
+[2026-08-24 09:20:39,299] [merqutil.git_util] [DEBUG] [62293] /tmp/ssh_key_for_codecommit did not exist - created it and chmodded to 700
+[2026-08-24 09:20:39,299] [merqutil.git_util] [DEBUG] [62293] Using SSH Command ssh -o StrictHostKeyChecking=no -i /tmp/ssh_key_for_codecommit
+[2026-08-24 09:20:54,586] [merq.merq_platform.api.components.index_core_data.index_storage_service.git_based_multi_asset_index_storage_service] [INFO] [62293] Loading / cloning git repo took 15.72 seconds. Latest git sha 71d9020e9cb71a7ff216790658dbff415b43b287
+[2026-08-24 09:20:54,586] [merq.merq_platform.api.components.index_core_data.index_storage_service.git_based_multi_asset_index_storage_service] [INFO] [62293] Loading index ... start_date=None end_date=None
+[2026-08-24 09:20:56,574] [merq.merq_platform.api.components.index_core_data.index_storage_service.git_based_multi_asset_index_storage_service] [INFO] [62293] Done (Took 17.71 seconds)
+[2026-08-24 09:20:56,576] [merq.merq_platform.api.indices.multi_asset.multi_asset_base_index] [DEBUG] [62293] Loaded in portfolio for date 2014-12-31 00:00:00
+[2026-08-24 09:20:56,577] [merq.mapping.mapping] [DEBUG] [62293] populating 1 entries in the price cache from the DB date=Timestamp('2015-01-02 00:00:00')
+[2026-08-24 09:20:56,577] [merqutil.secrets] [DEBUG] [62293] File /Users/luomengzhou/.merq_creds will be read as secret.
+[2026-08-24 09:20:56,577] [merqutil.db] [WARNING] [62293] Credentials are not configured in /Users/luomengzhou/.merq_creds.
+Please explicitly set credentials. Using default credentials for compatibility.
+Deprecation Warning: Default credentials will be removed in a later version.
+[2026-08-24 09:20:56,577] [merqutil.secrets] [DEBUG] [62293] Fetching secret db/db1/admin from AWS (non-cached)
+[2026-08-24 09:20:56,702] [merqutil.db] [INFO] [62293] creating engine for db1.mapping
+[2026-08-24 09:20:56,932] [merqutil.db] [INFO] [62293] creating engine for secret db/ivol-mdb/admin
+[2026-08-24 09:20:56,932] [merqutil.secrets] [DEBUG] [62293] File /Users/luomengzhou/.merq_creds will be read as secret.
+[2026-08-24 09:20:56,932] [merqutil.secrets] [DEBUG] [62293] Fetching secret db/ivol-mdb/admin from AWS (non-cached)
+[2026-08-24 09:20:57,051] [merqutil.db] [INFO] [62293] Engine successfully created for db/ivol-mdb/admin.ivol_mdb at ivol-mdb.aws.merqurian.com
+[2026-08-24 09:20:57,311] [merqutil.db] [DEBUG] [62293] : running sql
+
+            SELECT
+                rp.symbol, e.mic
+            FROM ivol.root_property rp
+            JOIN ivol.exchange e
+                ON e.exchange_id = rp.exchange_id
+            JOIN ivol.stock s
+                ON s.stock_id = rp.stock_id
+            WHERE rp.symbol in ('SPY')
+                AND rp.t_date <= '2015-01-02 00:00:00' AND rp.term_date >= '2015-01-02 00:00:00'
+                AND s.region_id = 1;
+        
+[2026-08-24 09:20:57,336] [merqutil.db] [INFO] [62293] 1 rows selected in 0.025306625058874488 s
+[2026-08-24 09:20:57,337] [merqutil.db] [DEBUG] [62293] : running sql
+
+            SELECT
+                ov.t_date,
+                ov.root, ov.expiration_date, ov.strike, ov.call_put, e.mic,
+                ov.open, ov.high, ov.low, ov.close,
+                ov.bid, ov.ask, ov.final_price as price, ov.open_interest, ov.volume, ov.shift,
+                ov.iv, ov.delta, ov.gamma, ov.theta, ov.vega, ov.rho, ov.is_interpolated, ov.status,
+                s.currency
+            FROM ivol.root_property rp
+            JOIN ivol.exchange e
+                ON e.exchange_id = rp.exchange_id
+            JOIN merq.option_prices ov
+                ON  (
+                    ov.stock_id = rp.stock_id
+                    AND ov.root_id = rp.root_id
+                )
+            JOIN ivol.stock s
+                ON s.stock_id = rp.stock_id
+            WHERE
+                ov.t_date between '2015-01-02 00:00:00' and '2015-01-02 00:00:00'
+                AND ov.t_date between rp.t_date and rp.term_date
+                AND (ov.expiration_date, ov.call_put, ov.strike::numeric, rp.symbol, e.mic) IN (('2015-01-30 00:00:00', 'C', '205.5', 'SPY', 'XCBO'))
+                AND rp.is_enabled = TRUE
+            UNION ALL
+            SELECT
+                ovn.t_date, ovn.root, ovn.expiration_date, ovn.strike, ovn.call_put, e.mic,
+                ovn.open, ovn.high, ovn.low, ovn.close,
+                ovn.bid, ovn.ask, ovn.final_price as price, ovn.open_interest, ovn.volume, ovn.shift,
+                ovn.iv, ovn.delta, ovn.gamma, ovn.theta, ovn.vega, ovn.rho, ovn.is_interpolated, ovn.status,
+                s.currency
+            FROM ivol.root_property rp
+            JOIN ivol.exchange e
+                ON e.exchange_id = rp.exchange_id
+            JOIN merq.option_prices_ns ovn
+                ON  (
+                    ovn.stock_id = rp.stock_id
+                    AND ovn.root_id = rp.root_id
+                )
+            JOIN ivol.stock s
+                ON s.stock_id = rp.stock_id
+            WHERE
+                ovn.t_date between '2015-01-02 00:00:00' and '2015-01-02 00:00:00'
+                AND ovn.t_date between rp.t_date and rp.term_date
+                AND (ovn.expiration_date, ovn.call_put, ovn.strike::numeric, rp.symbol, e.mic) IN (('2015-01-30 00:00:00', 'C', '205.5', 'SPY', 'XCBO'))
+                AND rp.is_enabled = FALSE;
+        
+[2026-08-24 09:20:57,480] [merqutil.db] [INFO] [62293] 1 rows selected in 0.1430205418728292 s
+[2026-08-24 09:20:57,480] [merqutil.db] [INFO] [62293] creating engine for secret db/db1/equities
+[2026-08-24 09:20:57,480] [merqutil.secrets] [DEBUG] [62293] File /Users/luomengzhou/.merq_creds will be read as secret.
+[2026-08-24 09:20:57,480] [merqutil.secrets] [DEBUG] [62293] Fetching secret db/db1/equities from AWS (non-cached)
+[2026-08-24 09:20:57,763] [merqutil.db] [INFO] [62293] Engine successfully created for db/db1/equities.None at db1-proxy.aws.merqurian.com
+[2026-08-24 09:20:57,914] [merqutil.db] [DEBUG] [62293] : running sql
+
+        SELECT mic
+        FROM exchange.merq_exchange
+        WHERE option_parent_mic = 'OPRA'
+    
+[2026-08-24 09:20:57,929] [merqutil.db] [INFO] [62293] 16 rows selected in 0.014539499999955297 s
+[2026-08-24 09:20:57,944] [merqutil.auth_web] [DEBUG] [62293] Creating new session for prefix_url: None
+[2026-08-24 09:20:57,944] [merqutil.auth_web] [DEBUG] [62293] No explicit api key or username_password passed, Looking for `apikey` in credentials file
+[2026-08-24 09:20:57,944] [merqutil.secrets] [DEBUG] [62293] File /Users/luomengzhou/.merq_creds will be read as secret.
+[2026-08-24 09:20:57,944] [merqutil.auth_web] [DEBUG] [62293] APIKey not found in creds file, will fall back to oauth
+[2026-08-24 09:20:57,944] [merqutil.auth_web] [DEBUG] [62293] Trying to make oauth session
+[2026-08-24 09:20:57,944] [merqutil.secrets] [DEBUG] [62293] File /Users/luomengzhou/.merq_creds will be read as secret.
+[2026-08-24 09:20:57,944] [merqutil.auth_web] [WARNING] [62293] User session not possible, falling back to machine session
+[2026-08-24 09:20:57,945] [merqutil.holidays] [DEBUG] [62293] Forming calendar with mics: ['swaps_monitor_OPA'], futures roots: [], mqi indices: [], and overlays: []
+[2026-08-24 09:20:57,945] [merqube_client_lib.session] [DEBUG] [62293] Performing GET on https://api.merqube.com/security
+[2026-08-24 09:20:58,050] [merqube_client_lib.session] [DEBUG] [62293] Performing GET on https://api.merqube.com/security/exchange?metrics=closed.edi,closed.factset,closed.override,closed.merq&names=swaps_monitor_OPA&ids=&start_date=1948-01-01T00:00:00&end_date=2202-12-31T00:00:00
+[2026-08-24 09:20:58,424] [merq.merq_platform.api.components.computation_pipeline.level_computers.standard_level_computer] [DEBUG] [62293] Equities contribution to index level: 1000.0
+[2026-08-24 09:20:58,424] [merq.merq_platform.api.components.computation_pipeline.level_computers.standard_level_computer] [DEBUG] [62293] Options contribution to index level: -3.608285060604544
+[2026-08-24 09:20:58,424] [merq.merq_platform.api.components.computation_pipeline.level_computers.standard_level_computer] [DEBUG] [62293] Cash contribution to index level: 3.608285060604544
+[2026-08-24 09:20:58,424] [merq.merq_platform.api.indices.multi_asset.multi_asset_base_index] [INFO] [62293] Computed index level for 2015-01-02 00:00:00 as 1000.0
+[2026-08-24 09:20:58,543] [merqutil.files] [DEBUG] [62293] s3://platform-dcs/rebal_info/index_id=OBUS0FM4/rebal_info.csv.gz exists
+[2026-08-24 09:20:58,689] [merqutil.s3] [DEBUG] [62293] Syncing platform-dcs:rebal_info/index_id=OBUS0FM4/rebal_info.csv.gz to /tmp/dc_cache/rebal_info/index_id=OBUS0FM4 and full name /tmp/dc_cache/rebal_info/index_id=OBUS0FM4/rebal_info.csv.gz
+[2026-08-24 09:20:58,954] [merq.merq_platform.impl.services.options.ivol_utils] [DEBUG] [62293] Getting external id for <class 'merq.merq_platform.api.components.identifiers.merq_equity_id.MerqEquityListingId'> with 1 ids.
+[2026-08-24 09:20:58,970] [merqutil.db] [DEBUG] [62293] : running sql
+
+                SELECT cvg.fsym_security_id, -- -S fsym id
+                    tr.ticker_region,
+                    tr.start_date,
+                    tr.end_date
+                  FROM fds.sym_v1_sym_coverage cvg
+                  JOIN fds.sym_v1_sym_ticker_region_hist tr
+                    ON tr.fsym_id = cvg.fsym_id -- join by regional -R fsym id
+                 WHERE cvg.fsym_security_id IN ('LY6WH5-S')
+                 ORDER BY tr.start_date
+            
+[2026-08-24 09:20:58,987] [merqutil.db] [INFO] [62293] 7 rows selected in 0.016958917025476694 s
+[2026-08-24 09:20:59,024] [merqutil.db] [DEBUG] [62293] : running sql
+
+                SELECT cvg.fsym_security_id, -- -S fsym id
+                    tr.ticker_region,
+                    tr.start_date,
+                    tr.end_date
+                  FROM fds.sym_v1_sym_coverage cvg
+                  JOIN mapping.fds_ticker_region_overrides tr
+                    ON tr.fsym_id = cvg.fsym_id -- join by regional -R fsym id
+                 WHERE cvg.fsym_security_id IN ('LY6WH5-S')
+                 ORDER BY tr.start_date
+            
+[2026-08-24 09:20:59,041] [merqutil.db] [INFO] [62293] 0 rows selected in 0.016827833140268922 s
+[2026-08-24 09:20:59,071] [merqutil.db] [DEBUG] [62293] : running sql
+
+        SELECT
+            REPLACE(ss.symbol, '/', '.') AS symbol,
+            s.region_id,
+            e.mic
+        FROM ivol.stock_symbol ss
+        JOIN ivol.stock s
+            ON s.stock_id = ss.stock_id
+        LEFT JOIN ivol.exchange e
+            ON e.exchange_id = ss.exchange_id
+        WHERE (replace(ss.symbol, '/', '.'), s.region_id) in (('SPY', 1)) AND
+            '2015-01-02 00:00:00' between ss.t_date and ss.term_date
+    
+[2026-08-24 09:20:59,088] [merqutil.db] [INFO] [62293] 1 rows selected in 0.01722275000065565 s
+[2026-08-24 09:20:59,089] [merqutil.db] [DEBUG] [62293] Fetching contracts from ivol: : running sql
+
+            SELECT
+                ov.t_date,
+                ss.stock_id,
+                replace(ss.symbol, '/', '.') as symbol,
+                ss.exchange_id,
+                s.region_id,
+                se.mic as underlier_mic,
+                e.mic as option_mic,
+                ov.root,
+                ov.expiration_date,
+                ov.strike,
+                ov.call_put
+            FROM ivol.stock_symbol ss
+            JOIN ivol.stock s
+                ON (
+                    s.stock_id = ss.stock_id
+                )
+            JOIN ivol.root_property rp
+                ON
+                    rp.stock_id = ss.stock_id
+            JOIN ivol.exchange e
+                ON  (
+                    e.exchange_id = rp.exchange_id
+                )
+            LEFT JOIN ivol.exchange se
+                ON  (
+                    se.exchange_id = ss.exchange_id
+                )
+            JOIN ivol.option_value ov
+                ON  (
+                    ov.stock_id = ss.stock_id
+                    AND ov.root_id = rp.root_id
+                )
+            WHERE ov.t_date = '2015-01-02 00:00:00' AND
+                (REPLACE(ss.symbol, '/', '.'), COALESCE(se.mic, 'NA')) IN (('SPY', 'ARCX')) AND
+                '2015-01-02 00:00:00' BETWEEN ss.t_date AND ss.term_date AND
+                '2015-01-02 00:00:00' BETWEEN rp.t_date AND rp.term_date AND
+                ov.call_put = 'C' AND
+                ov.expiration_date >= '2015-01-30 00:00:00' AND
+                ov.expiration_date <= '2015-02-01 00:00:00' AND
+                rp.is_enabled = TRUE
+        
+[2026-08-24 09:20:59,112] [merqutil.db] [INFO] [62293] Fetching contracts from ivol: 67 rows selected in 0.02318999986164272 s
+[2026-08-24 09:20:59,131] [merqutil.db] [DEBUG] [62293] : running sql
+
+        SELECT option_parent_mic
+        FROM exchange.merq_exchange
+        WHERE mic = 'XCBO'
+    
+[2026-08-24 09:20:59,149] [merqutil.db] [INFO] [62293] 1 rows selected in 0.018834250047802925 s
+[2026-08-24 09:20:59,170] [merqutil.db] [DEBUG] [62293] : running sql
+
+            SELECT
+                rp.symbol, e.mic
+            FROM ivol.root_property rp
+            JOIN ivol.exchange e
+                ON e.exchange_id = rp.exchange_id
+            JOIN ivol.stock s
+                ON s.stock_id = rp.stock_id
+            WHERE rp.symbol in ('SPY')
+                AND rp.t_date <= '2015-01-02 00:00:00' AND rp.term_date >= '2015-01-02 00:00:00'
+                AND s.region_id = 1;
+        
+[2026-08-24 09:20:59,190] [merqutil.db] [INFO] [62293] 1 rows selected in 0.020464791916310787 s
+[2026-08-24 09:20:59,192] [merqutil.db] [DEBUG] [62293] : running sql
+
+            SELECT
+                ov.t_date,
+                ov.root, ov.expiration_date, ov.strike, ov.call_put, e.mic,
+                ov.open, ov.high, ov.low, ov.close,
+                ov.bid, ov.ask, ov.final_price as price, ov.open_interest, ov.volume, ov.shift,
+                ov.iv, ov.delta, ov.gamma, ov.theta, ov.vega, ov.rho, ov.is_interpolated, ov.status,
+                s.currency
+            FROM ivol.root_property rp
+            JOIN ivol.exchange e
+                ON e.exchange_id = rp.exchange_id
+            JOIN merq.option_prices ov
+                ON  (
+                    ov.stock_id = rp.stock_id
+                    AND ov.root_id = rp.root_id
+                )
+            JOIN ivol.stock s
+                ON s.stock_id = rp.stock_id
+            WHERE
+                ov.t_date between '2015-01-02 00:00:00' and '2015-01-02 00:00:00'
+                AND ov.t_date between rp.t_date and rp.term_date
+                AND (ov.expiration_date, ov.call_put, ov.strike::numeric, rp.symbol, e.mic) IN (('2015-01-30 00:00:00', 'C', '205.0', 'SPY', 'XCBO'), ('2015-01-30 00:00:00', 'C', '206.0', 'SPY', 'XCBO'), ('2015-01-30 00:00:00', 'C', '204.5', 'SPY', 'XCBO'), ('2015-01-30 00:00:00', 'C', '206.5', 'SPY', 'XCBO'))
+                AND rp.is_enabled = TRUE
+            UNION ALL
+            SELECT
+                ovn.t_date, ovn.root, ovn.expiration_date, ovn.strike, ovn.call_put, e.mic,
+                ovn.open, ovn.high, ovn.low, ovn.close,
+                ovn.bid, ovn.ask, ovn.final_price as price, ovn.open_interest, ovn.volume, ovn.shift,
+                ovn.iv, ovn.delta, ovn.gamma, ovn.theta, ovn.vega, ovn.rho, ovn.is_interpolated, ovn.status,
+                s.currency
+            FROM ivol.root_property rp
+            JOIN ivol.exchange e
+                ON e.exchange_id = rp.exchange_id
+            JOIN merq.option_prices_ns ovn
+                ON  (
+                    ovn.stock_id = rp.stock_id
+                    AND ovn.root_id = rp.root_id
+                )
+            JOIN ivol.stock s
+                ON s.stock_id = rp.stock_id
+            WHERE
+                ovn.t_date between '2015-01-02 00:00:00' and '2015-01-02 00:00:00'
+                AND ovn.t_date between rp.t_date and rp.term_date
+                AND (ovn.expiration_date, ovn.call_put, ovn.strike::numeric, rp.symbol, e.mic) IN (('2015-01-30 00:00:00', 'C', '205.0', 'SPY', 'XCBO'), ('2015-01-30 00:00:00', 'C', '206.0', 'SPY', 'XCBO'), ('2015-01-30 00:00:00', 'C', '204.5', 'SPY', 'XCBO'), ('2015-01-30 00:00:00', 'C', '206.5', 'SPY', 'XCBO'))
+                AND rp.is_enabled = FALSE;
+        
+[2026-08-24 09:20:59,248] [merqutil.db] [INFO] [62293] 4 rows selected in 0.05664137518033385 s
+[2026-08-24 09:20:59,281] [merq.merq_platform.api.indices.multi_asset.multi_asset_base_index] [INFO] [62293] Selected rebalance portfolio on 2015-01-02 00:00:00, with selection date: 2015-01-02 00:00:00, application date: 2015-01-02 00:00:00
+Traceback (most recent call last):
+  File "<stdin>", line 20, in <module>
+  File "/Users/luomengzhou/Projects/dev-put-harvesting/python/merq/merq_platform/api/indices/multi_asset/multi_asset_base_index.py", line 804, in get_portfolios
+    return self._get_portfolios(
+  File "/Users/luomengzhou/Projects/dev-put-harvesting/python/merq/merq_platform/api/indices/multi_asset/multi_asset_base_index.py", line 899, in _get_portfolios
+    self.compute_eod(calc_date, prev_calc_date)  # override for custom computation logic
+  File "/Users/luomengzhou/Projects/dev-put-harvesting/python/merq/merq_platform/api/indices/multi_asset/standard_multi_asset_index.py", line 54, in compute_eod
+    todays_post_close_portfolio, final_recipes = self.create_post_close(
+  File "/Users/luomengzhou/Projects/dev-put-harvesting/python/merq/merq_platform/api/indices/multi_asset/multi_asset_base_index.py", line 1458, in create_post_close
+    return self.perform_rebalance_workflow(calc_date, return_date, adjusted_portfolio, MarketTime.CLOSE), recipes
+  File "/Users/luomengzhou/Projects/dev-put-harvesting/python/merq/merq_platform/api/indices/multi_asset/multi_asset_base_index.py", line 1517, in perform_rebalance_workflow
+    self._rebalances.add_rebalance(selected_rebalance, calc_date)
+  File "/Users/luomengzhou/Projects/dev-put-harvesting/python/merq/merq_platform/api/data_types/index_data/rebalances.py", line 88, in add_rebalance
+    raise ApplicationError(
+merq.merq_platform.api.exceptions.ApplicationError: There is already a rebalance for 2015-01-02 00:00:00. Cannot add duplicate
+got index <class 'merq.indices.merqube.options.merq_option_strategies.merqube_option_index.OptionStrategiesIndex'> None OBUS0FM4
+recomputing 2015-01-02 00:00:00 -> 2015-01-31 00:00:00
+OBUS0FM4 FAILED: There is already a rebalance for 2015-01-02 00:00:00. Cannot add duplicate
+[2026-08-24 09:21:22,937] [merq.config] [INFO] [64194] MERQ_ENV: None
+[2026-08-24 09:21:22,937] [merq.config] [INFO] [64194] MERQ_TEMPLATED_DAG: None
+[2026-08-24 09:21:22,937] [merq.config] [INFO] [64194] Running environment: production
+[2026-08-24 09:21:22,937] [merq.config] [INFO] [64194] is_prod_env() evaluated to False
+/Users/luomengzhou/Library/Caches/pypoetry/virtualenvs/merq-YPsgvTkp-py3.10/lib/python3.10/site-packages/fastapi/applications.py:18: StarletteDeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated. Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead.
+  from fastapi.exception_handlers import (
+/Users/luomengzhou/Library/Caches/pypoetry/virtualenvs/merq-YPsgvTkp-py3.10/lib/python3.10/site-packages/fastapi/applications.py:30: StarletteDeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated. Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead.
+  from fastapi.openapi.utils import get_openapi
+/Users/luomengzhou/Projects/dev-put-harvesting/python/merq/util/corax_util.py:210: FutureWarning: The default dtype for empty Series will be 'object' instead of 'float64' in a future version. Specify a dtype explicitly to silence this warning.
+  raw_data = pd.Series()  # used to hold on to the raw event for populating the corax data collection
+/Users/luomengzhou/Projects/dev-put-harvesting/python/merq/indices/merqube/options/datatypes/custom_option_pricer.py:84: UserWarning: Field name "adjusted_price" in "CustomOptionPrice" shadows an attribute in parent "BasePrice"
+  class CustomOptionPrice(BasePrice):
+[2026-08-24 09:21:24,170] [merqutil.auth_web] [DEBUG] [64194] Creating new session for prefix_url: https://api.merqube.com
+[2026-08-24 09:21:24,170] [merqutil.auth_web] [DEBUG] [64194] No explicit api key or username_password passed, Looking for `apikey` in credentials file
+[2026-08-24 09:21:24,170] [merqutil.secrets] [DEBUG] [64194] File /Users/luomengzhou/.merq_creds will be read as secret.
+[2026-08-24 09:21:24,170] [merqutil.auth_web] [DEBUG] [64194] APIKey not found in creds file, will fall back to oauth
+[2026-08-24 09:21:24,170] [merqutil.auth_web] [DEBUG] [64194] Trying to make oauth session
+[2026-08-24 09:21:24,170] [merqutil.secrets] [DEBUG] [64194] File /Users/luomengzhou/.merq_creds will be read as secret.
+[2026-08-24 09:21:24,170] [merqutil.auth_web] [WARNING] [64194] User session not possible, falling back to machine session
+[2026-08-24 09:21:24,170] [merqutil.secrets] [DEBUG] [64194] Fetching secret machine_api_keys from AWS (non-cached)
+[2026-08-24 09:21:24,306] [merqube_client_lib.session] [DEBUG] [64194] Performing GET on https://api.merqube.com/index?name=OBUS0FM4
+/Users/luomengzhou/Library/Caches/pypoetry/virtualenvs/merq-YPsgvTkp-py3.10/lib/python3.10/site-packages/pydantic/_internal/_generate_schema.py:2249: UnsupportedFieldAttributeWarning: The 'default' attribute with value None was provided to the `Field()` function, which has no effect in the context it was used. 'default' is field-specific metadata, and can only be attached to a model field using `Annotated` metadata or by assignment. This may have happened because an `Annotated` type alias using the `type` statement was used, or if the `Field()` function was attached to a single member of a union type.
+  warnings.warn(
+/Users/luomengzhou/Library/Caches/pypoetry/virtualenvs/merq-YPsgvTkp-py3.10/lib/python3.10/site-packages/pydantic/_internal/_generate_schema.py:2249: UnsupportedFieldAttributeWarning: The 'validate_default' attribute with value True was provided to the `Field()` function, which has no effect in the context it was used. 'validate_default' is field-specific metadata, and can only be attached to a model field using `Annotated` metadata or by assignment. This may have happened because an `Annotated` type alias using the `type` statement was used, or if the `Field()` function was attached to a single member of a union type.
+  warnings.warn(
+[2026-08-24 09:21:24,829] [merqutil.auth_web] [DEBUG] [64194] Creating new session for prefix_url: None
+[2026-08-24 09:21:24,829] [merqutil.auth_web] [DEBUG] [64194] No explicit api key or username_password passed, Looking for `apikey` in credentials file
+[2026-08-24 09:21:24,829] [merqutil.secrets] [DEBUG] [64194] File /Users/luomengzhou/.merq_creds will be read as secret.
+[2026-08-24 09:21:24,829] [merqutil.auth_web] [DEBUG] [64194] APIKey not found in creds file, will fall back to oauth
+[2026-08-24 09:21:24,829] [merqutil.auth_web] [DEBUG] [64194] Trying to make oauth session
+[2026-08-24 09:21:24,829] [merqutil.secrets] [DEBUG] [64194] File /Users/luomengzhou/.merq_creds will be read as secret.
+[2026-08-24 09:21:24,829] [merqutil.auth_web] [WARNING] [64194] User session not possible, falling back to machine session
+[2026-08-24 09:21:24,830] [merqutil.holidays] [DEBUG] [64194] Forming calendar with mics: ['XNYS'], futures roots: [], mqi indices: [], and overlays: []
+[2026-08-24 09:21:24,830] [merqube_client_lib.session] [DEBUG] [64194] Performing GET on https://api.merqube.com/security
+[2026-08-24 09:21:24,890] [merqube_client_lib.session] [DEBUG] [64194] Performing GET on https://api.merqube.com/security/exchange?metrics=closed.edi,closed.factset,closed.override,closed.merq&names=XNYS&ids=&start_date=1948-01-01T00:00:00&end_date=2202-12-31T00:00:00
+[2026-08-24 09:21:25,229] [merq.merq_platform.api.indices.multi_asset.multi_asset_base_index] [DEBUG] [64194] Successfully initialized OptionStrategiesIndex OBUS0FM4
+[2026-08-24 09:21:25,229] [merqutil.db] [INFO] [64194] creating engine for secret db/production/index-data-store/dev_readonly
+[2026-08-24 09:21:25,230] [merqutil.secrets] [DEBUG] [64194] File /Users/luomengzhou/.merq_creds will be read as secret.
+[2026-08-24 09:21:25,230] [merqutil.secrets] [DEBUG] [64194] Fetching secret db/production/index-data-store/dev_readonly from AWS (non-cached)
+[2026-08-24 09:21:25,373] [merqutil.db] [INFO] [64194] Engine successfully created for db/production/index-data-store/dev_readonly.None at index-data-store-proxy.aws.merqurian.com
+[2026-08-24 09:21:25,618] [merq.merq_platform.api.utils.db_utils] [DEBUG] [64194] running sql load IDS ids_rollout_state records
+[2026-08-24 09:21:25,618] [merq.merq_platform.api.utils.db_utils] [DEBUG] [64194] SELECT ids_platform.ids_rollout_state.index_name, ids_platform.ids_rollout_state.status, ids_platform.ids_rollout_state.notes 
+FROM ids_platform.ids_rollout_state 
+WHERE ids_platform.ids_rollout_state.index_name = 'OBUS0FM4'
+[2026-08-24 09:21:25,645] [merq.merq_platform.api.utils.db_utils] [DEBUG] [64194] 0 rows processed in 0.027s
+[2026-08-24 09:21:25,674] [merq.merq_platform.api.utils.db_utils] [DEBUG] [64194] running sql load IDS ids_migration_states records
+[2026-08-24 09:21:25,674] [merq.merq_platform.api.utils.db_utils] [DEBUG] [64194] SELECT ids_migration.ids_migration_states.index_uuid, ids_migration.ids_migration_states.status, ids_migration.ids_migration_states.run_mode, ids_migration.ids_migration_states.context, ids_migration.ids_migration_states.notes 
+FROM ids_migration.ids_migration_states 
+WHERE ids_migration.ids_migration_states.index_uuid IN ('1c3f00e2-f603-4957-a1a9-60794d2cf2e3')
+ AND ids_migration.ids_migration_states.row_end_ts > '2026-08-24 13:21:25.660393+00:00'
+[2026-08-24 09:21:25,701] [merq.merq_platform.api.utils.db_utils] [DEBUG] [64194] 0 rows processed in 0.027s
+[2026-08-24 09:21:25,900] [merqutil.git_util] [DEBUG] [64194] Using git url: ssh://APKA5CNMQL6O2YITXQ7T@git-codecommit.us-east-1.amazonaws.com/v1/repos/OBUS0FM4
+[2026-08-24 09:21:26,047] [merqutil.git_util] [DEBUG] [64194] Env SSH_KEY_NAME_FOR_CODECOMMIT found; reading private key from secret code_commit_read.
+[2026-08-24 09:21:26,047] [merqutil.git_util] [DEBUG] [64194] Storing key to /tmp/ssh_key_for_codecommit - already exists: True
+[2026-08-24 09:21:26,048] [merqutil.secrets] [DEBUG] [64194] Fetching secret code_commit_read from AWS (non-cached)
+[2026-08-24 09:21:26,278] [merqutil.git_util] [DEBUG] [64194] Using SSH Command ssh -o StrictHostKeyChecking=no -i /tmp/ssh_key_for_codecommit
+[2026-08-24 09:21:26,639] [merq.merq_platform.api.components.index_core_data.index_storage_service.git_based_multi_asset_index_storage_service] [INFO] [64194] Loading / cloning git repo took 0.92 seconds. Latest git sha 71d9020e9cb71a7ff216790658dbff415b43b287
+[2026-08-24 09:21:26,640] [merq.merq_platform.api.components.index_core_data.index_storage_service.git_based_multi_asset_index_storage_service] [INFO] [64194] Loading index ... start_date=None end_date=None
+[2026-08-24 09:21:28,556] [merq.merq_platform.api.components.index_core_data.index_storage_service.git_based_multi_asset_index_storage_service] [INFO] [64194] Done (Took 2.84 seconds)
+[2026-08-24 09:21:28,574] [merqube_client_lib.session] [DEBUG] [64194] Performing GET on https://api.merqube.com/security/index
+local returns shape (2926, 3) cols ['level', 'currency', 'divisor']
+local range 2015-01-02 00:00:00 -> 2026-08-21 00:00:00
+get_index_metric failed: 'MerqubeAPIClient' object has no attribute 'get_index_metric'
+status 200
+{"deprecation_warnings":[],"error_codes":[],"linked_resources":{},"results":[{"eff_ts":"2015-01-02T00:00:00","id":"9d32012a-6832-46a1-9d7a-b5674ac745b6","name":"OBUS0FM4","price_return":1000.0},{"eff_ts":"2015-01-05T00:00:00","id":"9d32012a-6832-46a1-9d7a-b5674ac745b6","name":"OBUS0FM4","price_return":983.7109964464779},{"eff_ts":"2015-01-06T00:00:00","id":"9d32012a-6832-46a1-9d7a-b5674ac745b6","name":"OBUS0FM4","price_return":975.0401596650926},{"eff_ts":"2015-01-07T00:00:00","id":"9d32012a-683
+using col level sample {Timestamp('2015-01-02 00:00:00'): 1000.0, Timestamp('2015-01-05 00:00:00'): 983.7109964464779, Timestamp('2015-01-06 00:00:00'): 975.0401596650926}
+OBUS0FM4 LOAD+COMPARE PATH DONE (see above)

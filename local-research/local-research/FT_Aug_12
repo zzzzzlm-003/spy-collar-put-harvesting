@@ -1,0 +1,203 @@
+{
+  "index_class_args": {
+    "spec": {
+      "base_date": "2013-03-15",
+      "base_val": 1000,
+      "calendar": {
+        "calendar_identifiers": [
+          "MIC:XNYS"
+        ]
+      },
+      "corporate_actions": {
+        "demerger": {
+          "retention_strategy": "ALWAYS"
+        },
+        "dividend": {
+          "reinvest_strategy": "IN_SECURITY"
+        },
+        "merger": {
+          "child_proceeds_strategy": "REINVEST_IN_INDEX",
+          "parent_retention_strategy": "IF_IN_INDEX"
+        },
+        "return_of_capital": {
+          "reinvest_strategy": "IN_SECURITY"
+        },
+        "rights_issue": {
+          "funding_strategy": "IN_INDEX"
+        }
+      },
+      "currency": "USD",
+      "early_rebalance_spec": {
+        "trigger_early_exercise": true,
+        "early_exercise_condition": {
+          "type": "PUT_HARVEST",
+          "assessment_anchor_date": "2013-03-15",
+          "assessment_frequency_months": 3,
+          "require_itm": true,
+          "appreciation_multiple": 2.0,
+          "min_days_to_expiry": 5
+        },
+        "early_exercise_treatment": {
+          "type": "RESTRIKE_AT_MARKET",
+          "new_strike_pct": 100
+        }
+      },
+      "groups": [
+        {
+          "cash_handler": {
+            "cash_handler_type": "ZeroOutCash",
+            "reinvestment_underlier": "el:LY6WH5-S:US:0"
+          },
+          "description": "Collar put leg - ATM protective puts, 1Y tenor, 4 quarterly tranches, harvested",
+          "financing_strategy": {
+            "type": "KEEP_CASH"
+          },
+          "is_financing": false,
+          "number_of_tranches": 4,
+          "options": [
+            {
+              "exposure": 100,
+              "option_type": "PUT",
+              "strike_type": "PCT_SPOT",
+              "strike_value": 100,
+              "trade_type": "BUY",
+              "underlier_id": "el:LY6WH5-S:US:0"
+            }
+          ],
+          "rebalancer": {
+            "expiry_calculator": {
+              "adjust_days": 0,
+              "expiry_calculator": "MonthlyExpiryCalculator",
+              "expiry_ways": {
+                "day_week": {
+                  "day": "FRI",
+                  "week": 3
+                },
+                "way": "day_week"
+              },
+              "roll_back": true,
+              "roll_frequency": 12
+            },
+            "init_date": "2013-03-15",
+            "not_active_strategy": {
+              "exposure": 0,
+              "way": "not_active"
+            },
+            "rebalance_calculator": {
+              "adjust_days": 0,
+              "expiry_calculator": "MonthlyExpiryCalculator",
+              "expiry_ways": {
+                "day_week": {
+                  "day": "FRI",
+                  "week": 3
+                },
+                "way": "day_week"
+              },
+              "roll_back": true,
+              "roll_frequency": 12
+            },
+            "roll_frequency_type": "Separated",
+            "selection_calculator": {
+              "adjust_days": 0,
+              "expiry_calculator": "MonthlyExpiryCalculator",
+              "expiry_ways": {
+                "day_week": {
+                  "day": "FRI",
+                  "week": 3
+                },
+                "way": "day_week"
+              },
+              "roll_back": true,
+              "roll_frequency": 12
+            }
+          }
+        },
+        {
+          "cash_handler": {
+            "cash_handler_type": "ZeroOutCash",
+            "reinvestment_underlier": "el:LY6WH5-S:US:0"
+          },
+          "description": "Collar call leg - short 2% OTM calls, bi-weekly roll",
+          "financing_strategy": {
+            "type": "KEEP_CASH"
+          },
+          "is_financing": false,
+          "number_of_tranches": 1,
+          "options": [
+            {
+              "exposure": 100,
+              "option_type": "CALL",
+              "strike_type": "PCT_SPOT",
+              "strike_value": 102,
+              "trade_type": "SELL",
+              "underlier_id": "el:LY6WH5-S:US:0"
+            }
+          ],
+          "rebalancer": {
+            "expiry_calculator": {
+              "adjust_days": 0,
+              "expiry_calculator": "MonthlyExpiryCalculator",
+              "expiry_ways": {
+                "day": "FRI",
+                "way": "Weekly"
+              },
+              "roll_back": true,
+              "roll_frequency": 2
+            },
+            "init_date": "2013-03-15",
+            "not_active_strategy": {
+              "exposure": 0,
+              "way": "not_active"
+            },
+            "rebalance_calculator": {
+              "adjust_days": 0,
+              "expiry_calculator": "MonthlyExpiryCalculator",
+              "expiry_ways": {
+                "day": "FRI",
+                "way": "Weekly"
+              },
+              "roll_back": true,
+              "roll_frequency": 2
+            },
+            "roll_frequency_type": "Separated",
+            "selection_calculator": {
+              "adjust_days": 0,
+              "expiry_calculator": "MonthlyExpiryCalculator",
+              "expiry_ways": {
+                "day": "FRI",
+                "way": "Weekly"
+              },
+              "roll_back": true,
+              "roll_frequency": 2
+            }
+          }
+        }
+      ],
+      "index_id": "SPYCollarHarvest",
+      "interest_rate_spec": {
+        "borrowing_rate": {
+          "rate": 0,
+          "type": "constant"
+        },
+        "lending_rate": {
+          "rate": 0,
+          "type": "constant"
+        }
+      },
+      "portfolio_date_type": "ROLL",
+      "starting_cash": 0,
+      "transaction_cost_spec": {
+        "individual_transaction_cost": {},
+        "pool_cash": false,
+        "transaction_cost_activated": false
+      },
+      "underlying_assets": [
+        {
+          "exposure": 100,
+          "underlier": "el:LY6WH5-S:US:0"
+        }
+      ]
+    }
+  },
+  "index_class_code": "option-strategies-index"
+}
