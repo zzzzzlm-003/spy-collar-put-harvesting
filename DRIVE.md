@@ -1,10 +1,10 @@
 # Large files (Google Drive)
 
-**Path:** `My Drive / Career / laptop-return-2026-08-27/`
+**Folder:** `My Drive / Career / laptop-return-2026-08-27/`
 
-| File | Size | Description |
-|------|------|-------------|
-| `put-harvest/dev-luomeng-put-harvesting.bundle` | ~167 MB | merqurian/dev `luomeng/put-harvesting` |
-| `company-clones/merq-research-luomeng.bundle` | ~1.6 GB | merq-research `luomeng` branch |
+| File | Size | Drive link |
+|------|------|------------|
+| `put-harvest/dev-luomeng-put-harvesting.bundle` | ~167 MB | https://drive.google.com/file/d/18VSZ-VAR_F9fyf78HmD9bWnLf-eraOON/view?usp=drive_link |
+| `company-clones/merq-research-luomeng.bundle` | ~1.6 GB | https://drive.google.com/file/d/18VSZ-VAR_F9fyf78HmD9bWnLf-eraOON/view?usp=drive_link |
 
-Local staging: `~/Documents/Archives/laptop-return-2026-08-27/`
+Local staging (uploaded, safe to delete): `~/Documents/Archives/laptop-return-2026-08-27/`
