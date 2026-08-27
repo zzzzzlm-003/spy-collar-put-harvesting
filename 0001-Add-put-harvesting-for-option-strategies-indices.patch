@@ -1,0 +1,1226 @@
+From b8a699bd12ade303492666fcb3886697f706b771 Mon Sep 17 00:00:00 2001
+From: Luomeng Zhou <luomeng@merqube.com>
+Date: Thu, 13 Aug 2026 16:42:21 -0400
+Subject: [PATCH] Add put harvesting for option strategies indices
+
+Adds an early-rebalance condition and treatment that close an appreciated
+protective put and re-strike it lower, for collar strategies that monetise
+protection instead of letting it decay.
+
+PutHarvestEarlyRebalance fires when a long put is in the money, has reached a
+multiple of its entry premium, and still has time left. It is assessed only on
+the roll schedule's own dates rather than every calculation date.
+
+The entry premium is recovered by re-pricing the contract on the date it was
+opened, so nothing has to be persisted for positions opened by the normal roll.
+Positions opened off-schedule by a harvest do need it, hence the new optional
+RollingOptionPosition.entry_date -- without it a re-struck put is measured
+against the original contract's premium and re-triggers immediately.
+
+RestrikeAtMarketEarlyRebalTreatment books the market premium rather than
+intrinsic value: the existing treatments settle at max(spot - strike, 0), which
+is right for an exercise but discards the time value a harvest exists to
+capture. The replacement keeps the same expiry, so the tranche stays on its roll
+cycle, and its cost is netted against the proceeds with only the remainder
+reinvested.
+
+Two engine fixes were needed to make an early rebalance that opens a position
+work at all:
+
+* Close prices are loaded before the pre-level step runs, so a position the step
+  opens is unpriced. MOIPreCalcStep now fetches prices for anything it finds
+  unpriced afterwards.
+* compute_eod then passed its own local reference to those prices on to
+  create_post_close. Pydantic copies the dict when IndexDailyPrices is built, so
+  prices added during the step never reached the post-close workflow and the
+  level computation failed on them. It now re-reads from the model.
+
+Also narrows the backwards-compatibility shim on EarlyRebalanceSpec. It used to
+tag any untyped condition as the legacy one; a harvest config missing its
+discriminator was therefore parsed as OptionStrategiesEarlyRebalance with every
+harvest parameter silently dropped, and the index ran early-exercise testing
+instead. Only a condition whose fields the legacy model understands is tagged
+now.
+
+FT_Aug_12 is the SPY collar this was built for: ATM puts laddered in four
+quarterly tranches of one-year trades, against short bi-weekly 2% OTM calls.
+
+NEEDS A DECISION BEFORE MERGE: the annual-tranching guard in strategies/spec.py
+is commented out here, carried over as-is from local backtesting, because the
+put leg is exactly what it rejects (number_of_tranches=4 with a 12-month roll).
+The guard was added for PE-8350 after a production failure and is correct for
+most configurations -- a 4-tranche annual ladder anchored to January lands on
+Apr/Jul/Oct, which have no twelve-month expiries. It is wrong only for a ladder
+anchored to the quarterly cycle, which is what FT_Aug_12 uses. Narrowing it to
+check tranche start months needs no data access and would let both cases be
+enforced; that is the change to agree on rather than shipping it commented out.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+---
+ .../early_rebalance_condition.py              |   3 +-
+ .../early_rebalance_condition_type.py         |  15 ++
+ .../put_harvest_condition.py                  | 214 +++++++++++++++
+ .../early_rebalance/early_rebalance_spec.py   |  31 ++-
+ .../early_rebalance_enum.py                   |   1 +
+ .../early_rebalance_type.py                   |  10 +-
+ .../restrike_treatment.py                     | 228 ++++++++++++++++
+ .../pre_calculation_engine.py                 |  24 ++
+ .../merqube/options/strategies/FT_Aug_12      | 203 ++++++++++++++
+ .../merqube/options/strategies/spec.py        |  18 +-
+ .../positions/option/option_position.py       |   4 +
+ .../multi_asset/standard_multi_asset_index.py |   3 +
+ .../test_restrike_treatment.py                | 253 ++++++++++++++++++
+ 13 files changed, 997 insertions(+), 10 deletions(-)
+ create mode 100644 python/merq/indices/merqube/options/merq_option_strategies/early_rebalance/early_rebalance_condition/early_rebalance_condition_type.py
+ create mode 100644 python/merq/indices/merqube/options/merq_option_strategies/early_rebalance/early_rebalance_condition/put_harvest_condition.py
+ create mode 100644 python/merq/indices/merqube/options/merq_option_strategies/early_rebalance/early_rebalance_treatment/restrike_treatment.py
+ create mode 100644 python/merq/indices/merqube/options/strategies/FT_Aug_12
+ create mode 100644 python/tests/unit/indices/merqube/options/merq_option_strategies/test_restrike_treatment.py
+
+diff --git a/python/merq/indices/merqube/options/merq_option_strategies/early_rebalance/early_rebalance_condition/early_rebalance_condition.py b/python/merq/indices/merqube/options/merq_option_strategies/early_rebalance/early_rebalance_condition/early_rebalance_condition.py
+index 56e7ecf2b..f2cc1b74c 100644
+--- a/python/merq/indices/merqube/options/merq_option_strategies/early_rebalance/early_rebalance_condition/early_rebalance_condition.py
++++ b/python/merq/indices/merqube/options/merq_option_strategies/early_rebalance/early_rebalance_condition/early_rebalance_condition.py
+@@ -7,7 +7,7 @@ THis is there only one condition we won't bother ourselves with creating multipl
+ """
+ 
+ from abc import ABC, abstractmethod
+-from typing import TYPE_CHECKING
++from typing import TYPE_CHECKING, Literal
+ 
+ import numpy as np
+ import pandas as pd
+@@ -55,6 +55,7 @@ class EarlyRebalanceABC(ABC, BaseModel):
+ 
+ 
+ class OptionStrategiesEarlyRebalance(EarlyRebalanceABC):
++    type: Literal["EARLY_EXERCISE"] = "EARLY_EXERCISE"
+     borrow: float = Field(default=0.0, description="The amount of money borrowed to buy the stock in bps")
+ 
+     def is_early_rebalance(
+diff --git a/python/merq/indices/merqube/options/merq_option_strategies/early_rebalance/early_rebalance_condition/early_rebalance_condition_type.py b/python/merq/indices/merqube/options/merq_option_strategies/early_rebalance/early_rebalance_condition/early_rebalance_condition_type.py
+new file mode 100644
+index 000000000..aecf0ccb3
+--- /dev/null
++++ b/python/merq/indices/merqube/options/merq_option_strategies/early_rebalance/early_rebalance_condition/early_rebalance_condition_type.py
+@@ -0,0 +1,15 @@
++from typing import Annotated, Union
++
++from pydantic import Field
++
++from merq.indices.merqube.options.merq_option_strategies.early_rebalance.early_rebalance_condition.early_rebalance_condition import (
++    OptionStrategiesEarlyRebalance,
++)
++from merq.indices.merqube.options.merq_option_strategies.early_rebalance.early_rebalance_condition.put_harvest_condition import (
++    PutHarvestEarlyRebalance,
++)
++
++EarlyRebalanceConditions = Annotated[
++    Union[OptionStrategiesEarlyRebalance, PutHarvestEarlyRebalance],
++    Field(description="Early rebalance condition", discriminator="type"),
++]
+diff --git a/python/merq/indices/merqube/options/merq_option_strategies/early_rebalance/early_rebalance_condition/put_harvest_condition.py b/python/merq/indices/merqube/options/merq_option_strategies/early_rebalance/early_rebalance_condition/put_harvest_condition.py
+new file mode 100644
+index 000000000..3eac43514
+--- /dev/null
++++ b/python/merq/indices/merqube/options/merq_option_strategies/early_rebalance/early_rebalance_condition/put_harvest_condition.py
+@@ -0,0 +1,214 @@
++"""Put harvesting condition for collar strategies.
++
++A protective put that has already paid off is closed early and re-struck lower, so the
++gain is monetised instead of decaying back to zero. Three tests must all pass:
++
++* **In the money.**  Spot is below the put strike.
++* **Appreciated.**  The put's market premium is at least ``appreciation_multiple`` times
++  what it cost at entry.
++* **Time left.**  More than ``min_days_to_expiry`` days remain, so there is still premium
++  worth harvesting rather than pure intrinsic value.
++
++Unlike :class:`OptionStrategiesEarlyRebalance` -- which tests American early *exercise*
++optimality every calculation date -- this is assessed only on the quarterly schedule
++dates, matching the tranche roll cycle: one tranche expires and rolls, the other three
++are assessed for harvesting.
++"""
++
++import logging
++from typing import TYPE_CHECKING, Literal
++
++import pandas as pd
++from pydantic import Field
++
++from merq.indices.merqube.options.merq_option_strategies.early_rebalance.early_rebalance_condition.early_rebalance_condition import (
++    EarlyRebalanceABC,
++)
++from merq.indices.merqube.options.strategies.definitions import OptionType, TradeType
++from merq.merq_platform.api.components.computation_pipeline.corax_loaders.corporate_actions_loader_abc import (
++    CorporateActionsLoaderABC,
++)
++from merq.merq_platform.api.components.identifiers.merq_option_id import (
++    OptionType as MerqOptionType,
++)
++from merq.merq_platform.api.components.pricers.standard_index_pricer import (
++    StandardIndexPricer,
++)
++from merq.merq_platform.api.data_types.index_data.fields import PdTimestamp
++from merq.merq_platform.api.data_types.index_data.portfolios import Portfolio
++from merq.merq_platform.api.data_types.index_data.positions.option.option_position import (
++    RollingOptionPosition,
++)
++from merq.merq_platform.api.exceptions import ApplicationError
++
++if TYPE_CHECKING:
++    from merq.indices.merqube.options.strategies.spec import OptionTranche
++
++logger = logging.getLogger(__name__)
++
++MONTHS_IN_YEAR = 12
++
++
++class PutHarvestEarlyRebalance(EarlyRebalanceABC):
++    """Early rebalance condition that harvests appreciated protective puts."""
++
++    type: Literal["PUT_HARVEST"] = "PUT_HARVEST"
++    assessment_anchor_date: PdTimestamp = Field(
++        description="Anchor for the assessment schedule; assessments land on this month plus multiples of "
++        "assessment_frequency_months"
++    )
++    assessment_frequency_months: int = Field(default=3, description="Months between harvest assessments", ge=1, le=12)
++    require_itm: bool = Field(default=True, description="Only harvest a put that is in the money")
++    appreciation_multiple: float = Field(
++        default=2.0, description="Harvest once the premium reaches this multiple of the entry premium", gt=0
++    )
++    min_days_to_expiry: int = Field(
++        default=5, description="Only harvest while strictly more than this many days remain to expiry", ge=0
++    )
++
++    def is_early_rebalance(
++        self,
++        tranche_spec: "OptionTranche",
++        portfolio: Portfolio,
++        pricer: StandardIndexPricer,
++        corax_loader: CorporateActionsLoaderABC,
++        cbd: pd.offsets.CustomBusinessDay,
++    ) -> bool:
++        del corax_loader  # harvesting does not depend on corporate actions
++
++        if not self._is_long_put_tranche(tranche_spec):
++            return False
++
++        date = portfolio.portfolio_date
++        if not self._is_assessment_date(date=date, tranche_spec=tranche_spec, cbd=cbd):
++            return False
++
++        positions = self._get_put_positions(portfolio=portfolio, tranche_spec=tranche_spec)
++        if not positions:
++            return False
++
++        underlier_id = tranche_spec.options[0].underlier_id
++        spot = pricer.load_prices_for_merq_ids(merq_ids=[underlier_id], price_date=date)[
++            underlier_id
++        ].get_close_adjusted_price()
++
++        for merq_option_id, position in positions.items():
++            if self._should_harvest(
++                merq_option_id=merq_option_id,
++                position=position,
++                spot=spot,
++                date=date,
++                pricer=pricer,
++                tranche_spec=tranche_spec,
++                cbd=cbd,
++            ):
++                logger.info(
++                    f"Put harvest triggered on {date.strftime('%Y-%m-%d')} for {merq_option_id} "
++                    f"- tranche {tranche_spec.uuid}"
++                )
++                return True
++
++        return False
++
++    @staticmethod
++    def _is_long_put_tranche(tranche_spec: "OptionTranche") -> bool:
++        """The composite runs every tranche through this condition, including the short call leg."""
++        option = tranche_spec.options[0]
++        return option.option_type == OptionType.PUT and option.trade_type == TradeType.BUY
++
++    @staticmethod
++    def _get_put_positions(portfolio: Portfolio, tranche_spec: "OptionTranche") -> dict:
++        return {
++            merq_id: position
++            for merq_id, position in portfolio.get_position_by_hash(tranche_spec.uuid).items()
++            if isinstance(position, RollingOptionPosition) and merq_id.type == MerqOptionType.PUT
++        }
++
++    def _is_assessment_date(
++        self, date: pd.Timestamp, tranche_spec: "OptionTranche", cbd: pd.offsets.CustomBusinessDay
++    ) -> bool:
++        months_since_anchor = (date.year - self.assessment_anchor_date.year) * MONTHS_IN_YEAR + (
++            date.month - self.assessment_anchor_date.month
++        )
++        if months_since_anchor < 0 or months_since_anchor % self.assessment_frequency_months != 0:
++            return False
++        return date == self._scheduled_day_in_month(month_start=date.replace(day=1), tranche_spec=tranche_spec, cbd=cbd)
++
++    def _should_harvest(
++        self,
++        merq_option_id,
++        position: RollingOptionPosition,
++        spot: float,
++        date: pd.Timestamp,
++        pricer: StandardIndexPricer,
++        tranche_spec: "OptionTranche",
++        cbd: pd.offsets.CustomBusinessDay,
++    ) -> bool:
++        if (merq_option_id.expiry - date).days <= self.min_days_to_expiry:
++            return False
++
++        if self.require_itm and spot >= merq_option_id.strike:
++            return False
++
++        entry_premium = self._get_entry_premium(
++            merq_option_id=merq_option_id, position=position, pricer=pricer, tranche_spec=tranche_spec, cbd=cbd
++        )
++        if entry_premium is None or entry_premium <= 0:
++            return False
++
++        current_premium = pricer.load_prices_for_merq_ids(merq_ids=[merq_option_id], price_date=date)[
++            merq_option_id
++        ].get_close_adjusted_price()
++
++        return current_premium >= self.appreciation_multiple * entry_premium
++
++    def _get_entry_premium(
++        self,
++        merq_option_id,
++        position: RollingOptionPosition,
++        pricer: StandardIndexPricer,
++        tranche_spec: "OptionTranche",
++        cbd: pd.offsets.CustomBusinessDay,
++    ) -> float | None:
++        """Re-price the contract on the date it was opened rather than storing the premium.
++
++        ``entry_date`` is stamped on the position by the harvest treatment when a put is
++        re-struck mid-cycle; positions opened by the normal rebalance flow do not carry it,
++        so the entry date is derived from the roll schedule instead.
++        """
++        entry_date = position.entry_date or self._derive_entry_date(
++            merq_option_id=merq_option_id, tranche_spec=tranche_spec, cbd=cbd
++        )
++        try:
++            return pricer.load_prices_for_merq_ids(merq_ids=[merq_option_id], price_date=entry_date)[
++                merq_option_id
++            ].get_close_adjusted_price()
++        except Exception:  # pylint: disable=broad-except
++            logger.warning(f"No entry price for {merq_option_id} on {entry_date.strftime('%Y-%m-%d')}; not harvesting")
++            return None
++
++    def _derive_entry_date(
++        self, merq_option_id, tranche_spec: "OptionTranche", cbd: pd.offsets.CustomBusinessDay
++    ) -> pd.Timestamp:
++        """Walk the expiry schedule backwards one roll period from this contract's expiry."""
++        expiry_calculator = tranche_spec.rebalancer.expiry_calculator
++        month_start = merq_option_id.expiry.replace(day=1) - pd.DateOffset(months=expiry_calculator.roll_frequency)
++        return self._scheduled_day_in_month(month_start=month_start, tranche_spec=tranche_spec, cbd=cbd)
++
++    @staticmethod
++    def _scheduled_day_in_month(
++        month_start: pd.Timestamp, tranche_spec: "OptionTranche", cbd: pd.offsets.CustomBusinessDay
++    ) -> pd.Timestamp:
++        expiry_calculator = tranche_spec.rebalancer.expiry_calculator
++        expiry_ways = expiry_calculator.expiry_ways
++        if expiry_ways.way != "day_week":
++            raise ApplicationError(
++                f"Put harvesting only supports day_week expiries, got {expiry_ways.way}. The put leg of a collar "
++                f"rolls on the third Friday; harvest scheduling has no meaning for the other expiry ways."
++            )
++        scheduled = pd.date_range(
++            start=month_start,
++            periods=1,
++            freq=f"WOM-{expiry_ways.day_week.week}{expiry_ways.day_week.day.value}",
++        )[0]
++        return cbd.rollback(scheduled) if expiry_calculator.roll_back else cbd.rollforward(scheduled)
+diff --git a/python/merq/indices/merqube/options/merq_option_strategies/early_rebalance/early_rebalance_spec.py b/python/merq/indices/merqube/options/merq_option_strategies/early_rebalance/early_rebalance_spec.py
+index c463b6012..b76b52122 100644
+--- a/python/merq/indices/merqube/options/merq_option_strategies/early_rebalance/early_rebalance_spec.py
++++ b/python/merq/indices/merqube/options/merq_option_strategies/early_rebalance/early_rebalance_spec.py
+@@ -1,14 +1,41 @@
+-from pydantic import BaseModel
++from typing import Any
++
++from pydantic import BaseModel, model_validator
+ 
+ from merq.indices.merqube.options.merq_option_strategies.early_rebalance.early_rebalance_condition.early_rebalance_condition import (
+     OptionStrategiesEarlyRebalance,
+ )
++from merq.indices.merqube.options.merq_option_strategies.early_rebalance.early_rebalance_condition.early_rebalance_condition_type import (
++    EarlyRebalanceConditions,
++)
+ from merq.indices.merqube.options.merq_option_strategies.early_rebalance.early_rebalance_treatment.early_rebalance_type import (
+     EarlyRebalanceTreatments,
+ )
+ 
++LEGACY_CONDITION_TYPE = "EARLY_EXERCISE"
++LEGACY_CONDITION_FIELDS = frozenset(OptionStrategiesEarlyRebalance.model_fields)
++
+ 
+ class EarlyRebalanceSpec(BaseModel):
+     trigger_early_exercise: bool = False
+-    early_exercise_condition: OptionStrategiesEarlyRebalance | None = None
++    early_exercise_condition: EarlyRebalanceConditions | None = None
+     early_exercise_treatment: EarlyRebalanceTreatments | None = None
++
++    @model_validator(mode="before")
++    @classmethod
++    def tag_legacy_condition(cls, data: Any) -> Any:
++        """Specs written before the condition became a union have no discriminator to match on.
++
++        Only a condition whose fields the legacy model actually understands is tagged. A newer
++        condition that merely forgot its ``type`` must fail loudly: tagging it as the legacy one
++        would drop every field the legacy model lacks and silently run early-exercise testing in
++        place of the strategy that was asked for.
++        """
++        if not isinstance(data, dict):
++            return data
++        condition = data.get("early_exercise_condition")
++        if not isinstance(condition, dict) or "type" in condition:
++            return data
++        if not set(condition) <= LEGACY_CONDITION_FIELDS:
++            return data
++        return {**data, "early_exercise_condition": {**condition, "type": LEGACY_CONDITION_TYPE}}
+diff --git a/python/merq/indices/merqube/options/merq_option_strategies/early_rebalance/early_rebalance_treatment/early_rebalance_enum.py b/python/merq/indices/merqube/options/merq_option_strategies/early_rebalance/early_rebalance_treatment/early_rebalance_enum.py
+index 0306510fe..c741c5cb5 100644
+--- a/python/merq/indices/merqube/options/merq_option_strategies/early_rebalance/early_rebalance_treatment/early_rebalance_enum.py
++++ b/python/merq/indices/merqube/options/merq_option_strategies/early_rebalance/early_rebalance_treatment/early_rebalance_enum.py
+@@ -5,3 +5,4 @@ class EarlyRebalanceTreatmentPossibilities(str, Enum):
+     CASH_UNTIL_REBALANCE = "CASH_UNTIL_REBALANCE"
+     REENTER_IN_N_DAYS = "REENTER_IN_N_DAYS"
+     CONDITIONAL_REBALANCE = "CONDITIONAL_REBALANCE"
++    RESTRIKE_AT_MARKET = "RESTRIKE_AT_MARKET"
+diff --git a/python/merq/indices/merqube/options/merq_option_strategies/early_rebalance/early_rebalance_treatment/early_rebalance_type.py b/python/merq/indices/merqube/options/merq_option_strategies/early_rebalance/early_rebalance_treatment/early_rebalance_type.py
+index c250172bd..d1ba5725b 100644
+--- a/python/merq/indices/merqube/options/merq_option_strategies/early_rebalance/early_rebalance_treatment/early_rebalance_type.py
++++ b/python/merq/indices/merqube/options/merq_option_strategies/early_rebalance/early_rebalance_treatment/early_rebalance_type.py
+@@ -7,8 +7,16 @@ from merq.indices.merqube.options.merq_option_strategies.early_rebalance.early_r
+     EarlyRebalTreatmentConditional,
+     ReEnterEarlyRebalTreatment,
+ )
++from merq.indices.merqube.options.merq_option_strategies.early_rebalance.early_rebalance_treatment.restrike_treatment import (
++    RestrikeAtMarketEarlyRebalTreatment,
++)
+ 
+ EarlyRebalanceTreatments = Annotated[
+-    Union[CashUntilRebalanceEarlyRebalTreatment, ReEnterEarlyRebalTreatment, EarlyRebalTreatmentConditional],
++    Union[
++        CashUntilRebalanceEarlyRebalTreatment,
++        ReEnterEarlyRebalTreatment,
++        EarlyRebalTreatmentConditional,
++        RestrikeAtMarketEarlyRebalTreatment,
++    ],
+     Field(description="Early rebalance treatment", discriminator="type"),
+ ]
+diff --git a/python/merq/indices/merqube/options/merq_option_strategies/early_rebalance/early_rebalance_treatment/restrike_treatment.py b/python/merq/indices/merqube/options/merq_option_strategies/early_rebalance/early_rebalance_treatment/restrike_treatment.py
+new file mode 100644
+index 000000000..7cf1dda17
+--- /dev/null
++++ b/python/merq/indices/merqube/options/merq_option_strategies/early_rebalance/early_rebalance_treatment/restrike_treatment.py
+@@ -0,0 +1,228 @@
++"""Harvest treatment: close an appreciated put at market and re-strike it lower.
++
++The two treatments in :mod:`early_rebalance_treatment` unwind at **intrinsic value**
++(``max(spot - strike, 0)``), which is correct when a position is being exercised. A
++harvested put is being *sold*, and a put with months left to run is worth materially more
++than its intrinsic value, so this treatment books the market premium instead.
++
++The replacement keeps the **same expiry** as the contract it replaces, so the tranche stays
++on its quarterly roll cycle -- a re-strike that reset to a fresh twelve-month tenor would
++land on a month with no listed LEAPS and fail at the next roll. See ANNUAL_TRANCHING.md.
++
++The new put is paid from the sale proceeds on the harvest date; only the leftover
++(``proceeds - new put cost``) is reinvested into the underlier. That avoids the regular
++applier order (ZeroOutCash then KEEP_CASH), which would buy the underlier with gross
++proceeds and leave the new put financed as negative cash.
++"""
++
++import logging
++from typing import TYPE_CHECKING, ClassVar, Literal
++
++import numpy as np
++import pandas as pd
++from pydantic import Field
++
++from merq.indices.merqube.options.datatypes.custom_option import RateCashPosition
++from merq.indices.merqube.options.datatypes.helper_functions.helper_functions import (
++    get_merq_currency_id,
++)
++from merq.indices.merqube.options.merq_option_strategies.early_rebalance.early_rebalance_treatment.early_rebalance_abc import (
++    EarlyRebalanceTreatmentABC,
++)
++from merq.indices.merqube.options.merq_option_strategies.early_rebalance.early_rebalance_treatment.early_rebalance_enum import (
++    EarlyRebalanceTreatmentPossibilities,
++)
++from merq.merq_platform.api.components.identifiers.merq_option_id import (
++    MerqOptionId,
++    OptionType,
++)
++from merq.merq_platform.api.components.pricers.standard_index_pricer import (
++    StandardIndexPricer,
++)
++from merq.merq_platform.api.data_types.index_data.portfolios import Portfolio
++from merq.merq_platform.api.data_types.index_data.positions.option.option_position import (
++    RollingOptionPosition,
++)
++from merq.merq_platform.api.data_types.index_data.prices import Prices
++from merq.merq_platform.api.data_types.index_data.rebalances import Rebalance
++from merq.merq_platform.api.exceptions import ApplicationError
++from merq.merq_platform.impl.services.options.ivol_reference_data_provider import (
++    IvolReferenceDataProvider,
++)
++from merq.merq_platform.impl.services.symbology.configured_symbology_mapper import (
++    ConfiguredSymbologyMapper,
++)
++
++if TYPE_CHECKING:
++    from merq.indices.merqube.options.strategies.spec import OptionTranche
++
++logger = logging.getLogger(__name__)
++
++
++class RestrikeAtMarketEarlyRebalTreatment(EarlyRebalanceTreatmentABC):
++    """Close the tranche's puts at their market premium and re-enter lower-struck ones."""
++
++    type: Literal[
++        EarlyRebalanceTreatmentPossibilities.RESTRIKE_AT_MARKET
++    ] = EarlyRebalanceTreatmentPossibilities.RESTRIKE_AT_MARKET
++
++    new_strike_pct: float = Field(
++        default=100.0,
++        description="Strike of the replacement put as a percentage of spot, matching the PCT_SPOT convention "
++        "(100 == at the money)",
++        gt=0,
++    )
++    nb_days_to_reenter: int = Field(
++        default=1,
++        description="If the scheduled roll is within this many business days, close without re-striking",
++        ge=1,
++    )
++
++    CONTRACTS_TO_PRICE: ClassVar[int] = 5
++
++    def apply_early_rebalance(
++        self,
++        portfolio: Portfolio,
++        pricer: StandardIndexPricer,
++        cbd: pd.offsets.CustomBusinessDay,
++        tranche_spec: "OptionTranche",
++        intermediates: dict | None = None,
++    ) -> tuple[Portfolio, Rebalance | None]:
++        del intermediates  # the composite does not pass these through
++
++        new_portfolio = portfolio.model_copy(deep=True)
++        uuid = tranche_spec.uuid
++        if uuid is None:
++            raise ApplicationError("Harvest requires a tranche uuid to credit cash")
++        current_date = new_portfolio.portfolio_date
++        roll_cutoff = current_date + self.nb_days_to_reenter * cbd
++
++        puts = {
++            merq_id: position
++            for merq_id, position in new_portfolio.get_position_by_hash(hash_id=uuid).items()
++            if isinstance(position, RollingOptionPosition) and merq_id.type == OptionType.PUT
++        }
++        if not puts:
++            raise ApplicationError(f"No put position to harvest for tranche {uuid}")
++
++        underlier_id = tranche_spec.options[0].underlier_id
++        prices: Prices = pricer.load_prices_for_merq_ids(merq_ids=[underlier_id, *puts.keys()], price_date=current_date)
++        spot = prices[underlier_id].get_close_adjusted_price()
++
++        proceeds = 0.0
++        rebalance_date: pd.Timestamp | None = None
++        closed_puts: list[tuple[MerqOptionId, RollingOptionPosition]] = []
++
++        for merq_option_id, position in puts.items():
++            proceeds += position.quantity * prices[merq_option_id].get_close_adjusted_price()
++            rebalance_date = position.rebalance_date
++            closed_puts.append((merq_option_id, position))
++            del new_portfolio.positions[merq_option_id]
++
++        cash_bucket = self._ensure_tranche_cash_bucket(portfolio=new_portfolio, uuid=uuid, maturity_date=rebalance_date)
++
++        if rebalance_date is None or rebalance_date <= roll_cutoff:
++            # The scheduled roll lands first; park proceeds and let it re-establish the leg.
++            cash_bucket.cash_amount += proceeds
++            return new_portfolio, None
++
++        replacement_puts: dict[MerqOptionId, RollingOptionPosition] = {}
++        for merq_option_id, position in closed_puts:
++            new_option_id = self._find_restruck_contract(
++                old_option_id=merq_option_id,
++                underlier_id=underlier_id,
++                spot=spot,
++                date=current_date,
++                pricer=pricer,
++            )
++            replacement_puts[new_option_id] = RollingOptionPosition(
++                merq_id=new_option_id,
++                rebalance_date=position.rebalance_date,
++                selection_date=position.selection_date,
++                shares=position.shares,
++                currency=position.currency,
++                rebalance_weight=position.rebalance_weight,
++                strategy_id=position.strategy_id,
++                entry_date=current_date,
++            )
++            logger.info(
++                f"Harvested {merq_option_id} at {prices[merq_option_id].get_close_adjusted_price():.4f} "
++                f"on {current_date.strftime('%Y-%m-%d')}, re-striking to {new_option_id}"
++            )
++
++        replacement_prices = pricer.load_prices_for_merq_ids(
++            merq_ids=list(replacement_puts.keys()), price_date=current_date
++        )
++        new_put_cost = sum(
++            position.quantity * replacement_prices[merq_id].get_close_adjusted_price()
++            for merq_id, position in replacement_puts.items()
++        )
++        leftover = proceeds - new_put_cost
++        new_portfolio.positions.update(replacement_puts)
++        self._reinvest_leftover(portfolio=new_portfolio, leftover=leftover, underlier_id=underlier_id, spot=spot)
++        return new_portfolio, None
++
++    def _ensure_tranche_cash_bucket(
++        self, portfolio: Portfolio, uuid: int, maturity_date: pd.Timestamp | None
++    ) -> RateCashPosition:
++        currency_id = get_merq_currency_id(portfolio=portfolio)
++        cash_position = portfolio.positions[currency_id]
++        if uuid not in cash_position.cash_buckets:
++            cash_position.cash_buckets[uuid] = RateCashPosition(
++                uuid=uuid, cash_amount=0, return_rate=0, maturity_date=maturity_date
++            )
++        else:
++            cash_position.cash_buckets[uuid].maturity_date = maturity_date
++        return cash_position.cash_buckets[uuid]
++
++    @staticmethod
++    def _reinvest_leftover(portfolio: Portfolio, leftover: float, underlier_id, spot: float) -> None:
++        if np.isclose(leftover, 0, atol=1e-6):
++            return
++        if underlier_id not in portfolio.positions:
++            raise ApplicationError("The reinvestment underlier should be in the portfolio")
++        portfolio.positions[underlier_id].shares += leftover / spot
++
++    def _find_restruck_contract(
++        self,
++        old_option_id: MerqOptionId,
++        underlier_id,
++        spot: float,
++        date: pd.Timestamp,
++        pricer: StandardIndexPricer,
++    ) -> MerqOptionId:
++        """Pick the listed put closest to the target strike at the *unchanged* expiry.
++
++        Only contracts struck below the one being closed are eligible -- re-striking at or
++        above the old strike would not be harvesting.
++        """
++        provider = IvolReferenceDataProvider(ConfiguredSymbologyMapper())
++        wanted_strike = spot * self.new_strike_pct / 100
++
++        contracts = provider.get_active_contracts(
++            underlyings=[underlier_id],
++            eff_date=date,
++            start_expiry_date=old_option_id.expiry,
++            end_expiry_date=old_option_id.expiry,
++            option_type=OptionType.PUT,
++            standard_only=True,
++        )
++        candidates = [c for c in contracts.get(underlier_id, []) if c.strike < old_option_id.strike]
++        if not candidates:
++            raise ApplicationError(
++                f"No put struck below {old_option_id.strike} expiring {old_option_id.expiry.strftime('%Y-%m-%d')} "
++                f"for {underlier_id} on {date.strftime('%Y-%m-%d')}; cannot re-strike"
++            )
++
++        candidates.sort(key=lambda contract: abs(contract.strike - wanted_strike))
++        shortlist = candidates[: self.CONTRACTS_TO_PRICE]
++        shortlist_prices = pricer.load_prices_for_merq_ids(merq_ids=shortlist, price_date=date)
++        for contract in shortlist:
++            if shortlist_prices[contract].price > 0:
++                return contract
++
++        logger.warning(
++            f"All {len(shortlist)} candidate re-strike contracts for {old_option_id} priced at 0 on "
++            f"{date.strftime('%Y-%m-%d')}; using the closest strike anyway"
++        )
++        return shortlist[0]
+diff --git a/python/merq/indices/merqube/options/merq_option_strategies/pre_calculation_engine/pre_calculation_engine.py b/python/merq/indices/merqube/options/merq_option_strategies/pre_calculation_engine/pre_calculation_engine.py
+index fad45abd6..14f565053 100644
+--- a/python/merq/indices/merqube/options/merq_option_strategies/pre_calculation_engine/pre_calculation_engine.py
++++ b/python/merq/indices/merqube/options/merq_option_strategies/pre_calculation_engine/pre_calculation_engine.py
+@@ -10,6 +10,7 @@ from merq.indices.report_utils import Portfolio
+ from merq.merq_platform.api.components.computation_pipeline.hooks.pre_level_calculation_steps.pre_level_calculation_step_abc import (
+     PreLevelCalculationStepABC,
+ )
++from merq.merq_platform.api.components.identifiers.priceable_id import PriceableId
+ from merq.merq_platform.api.data_types.index_data.prices import IndexDailyPrices
+ from merq.merq_platform.api.data_types.index_data.rebalances import Rebalance
+ 
+@@ -29,7 +30,30 @@ class MOIPreCalcStep(PreLevelCalculationStepABC):
+             selection_date=calc_date, portfolio=portfolio
+         ):
+             portfolio, rebalance_dict = self._early_rebalancer.apply_early_exercise(existing_portfolio=portfolio)
++            self._price_positions_opened_by_early_rebalance(portfolio=portfolio, prices=prices, calc_date=calc_date)
+             if rebalance_dict:
+                 return portfolio, rebalance_dict.values()
+ 
+         return portfolio, None
++
++    def _price_positions_opened_by_early_rebalance(
++        self, portfolio: Portfolio, prices: IndexDailyPrices, calc_date: pd.Timestamp
++    ) -> None:
++        """Fetch prices for positions the early rebalance just opened.
++
++        Close prices are loaded for the portfolio *before* this step runs, so a treatment that
++        opens a position the index was not already holding -- a put re-struck to a new strike,
++        say -- leaves that position unpriced and the level computation fails on it.
++        """
++        unpriced_merq_ids = [
++            merq_id
++            for merq_id in portfolio.positions
++            if isinstance(merq_id, PriceableId) and not prices.close_prices.get(merq_id)
++        ]
++        if not unpriced_merq_ids:
++            return
++
++        prices.add_prices(
++            calc_date,
++            self._early_rebalancer.pricer.load_prices_for_merq_ids(price_date=calc_date, merq_ids=unpriced_merq_ids),
++        )
+diff --git a/python/merq/indices/merqube/options/strategies/FT_Aug_12 b/python/merq/indices/merqube/options/strategies/FT_Aug_12
+new file mode 100644
+index 000000000..46d082390
+--- /dev/null
++++ b/python/merq/indices/merqube/options/strategies/FT_Aug_12
+@@ -0,0 +1,203 @@
++{
++  "index_class_args": {
++    "spec": {
++      "base_date": "2013-03-15",
++      "base_val": 1000,
++      "calendar": {
++        "calendar_identifiers": [
++          "MIC:XNYS"
++        ]
++      },
++      "corporate_actions": {
++        "demerger": {
++          "retention_strategy": "ALWAYS"
++        },
++        "dividend": {
++          "reinvest_strategy": "IN_SECURITY"
++        },
++        "merger": {
++          "child_proceeds_strategy": "REINVEST_IN_INDEX",
++          "parent_retention_strategy": "IF_IN_INDEX"
++        },
++        "return_of_capital": {
++          "reinvest_strategy": "IN_SECURITY"
++        },
++        "rights_issue": {
++          "funding_strategy": "IN_INDEX"
++        }
++      },
++      "currency": "USD",
++      "early_rebalance_spec": {
++        "trigger_early_exercise": true,
++        "early_exercise_condition": {
++          "type": "PUT_HARVEST",
++          "assessment_anchor_date": "2013-03-15",
++          "assessment_frequency_months": 3,
++          "require_itm": true,
++          "appreciation_multiple": 2.0,
++          "min_days_to_expiry": 5
++        },
++        "early_exercise_treatment": {
++          "type": "RESTRIKE_AT_MARKET",
++          "new_strike_pct": 100
++        }
++      },
++      "groups": [
++        {
++          "cash_handler": {
++            "cash_handler_type": "ZeroOutCash",
++            "reinvestment_underlier": "el:LY6WH5-S:US:0"
++          },
++          "description": "Collar put leg - ATM protective puts, 1Y tenor, 4 quarterly tranches, harvested",
++          "financing_strategy": {
++            "type": "KEEP_CASH"
++          },
++          "is_financing": false,
++          "number_of_tranches": 4,
++          "options": [
++            {
++              "exposure": 100,
++              "option_type": "PUT",
++              "strike_type": "PCT_SPOT",
++              "strike_value": 100,
++              "trade_type": "BUY",
++              "underlier_id": "el:LY6WH5-S:US:0"
++            }
++          ],
++          "rebalancer": {
++            "expiry_calculator": {
++              "adjust_days": 0,
++              "expiry_calculator": "MonthlyExpiryCalculator",
++              "expiry_ways": {
++                "day_week": {
++                  "day": "FRI",
++                  "week": 3
++                },
++                "way": "day_week"
++              },
++              "roll_back": true,
++              "roll_frequency": 12
++            },
++            "init_date": "2013-03-15",
++            "not_active_strategy": {
++              "exposure": 0,
++              "way": "not_active"
++            },
++            "rebalance_calculator": {
++              "adjust_days": 0,
++              "expiry_calculator": "MonthlyExpiryCalculator",
++              "expiry_ways": {
++                "day_week": {
++                  "day": "FRI",
++                  "week": 3
++                },
++                "way": "day_week"
++              },
++              "roll_back": true,
++              "roll_frequency": 12
++            },
++            "roll_frequency_type": "Separated",
++            "selection_calculator": {
++              "adjust_days": 0,
++              "expiry_calculator": "MonthlyExpiryCalculator",
++              "expiry_ways": {
++                "day_week": {
++                  "day": "FRI",
++                  "week": 3
++                },
++                "way": "day_week"
++              },
++              "roll_back": true,
++              "roll_frequency": 12
++            }
++          }
++        },
++        {
++          "cash_handler": {
++            "cash_handler_type": "ZeroOutCash",
++            "reinvestment_underlier": "el:LY6WH5-S:US:0"
++          },
++          "description": "Collar call leg - short 2% OTM calls, bi-weekly roll",
++          "financing_strategy": {
++            "type": "KEEP_CASH"
++          },
++          "is_financing": false,
++          "number_of_tranches": 1,
++          "options": [
++            {
++              "exposure": 100,
++              "option_type": "CALL",
++              "strike_type": "PCT_SPOT",
++              "strike_value": 102,
++              "trade_type": "SELL",
++              "underlier_id": "el:LY6WH5-S:US:0"
++            }
++          ],
++          "rebalancer": {
++            "expiry_calculator": {
++              "adjust_days": 0,
++              "expiry_calculator": "MonthlyExpiryCalculator",
++              "expiry_ways": {
++                "day": "FRI",
++                "way": "Weekly"
++              },
++              "roll_back": true,
++              "roll_frequency": 2
++            },
++            "init_date": "2013-03-15",
++            "not_active_strategy": {
++              "exposure": 0,
++              "way": "not_active"
++            },
++            "rebalance_calculator": {
++              "adjust_days": 0,
++              "expiry_calculator": "MonthlyExpiryCalculator",
++              "expiry_ways": {
++                "day": "FRI",
++                "way": "Weekly"
++              },
++              "roll_back": true,
++              "roll_frequency": 2
++            },
++            "roll_frequency_type": "Separated",
++            "selection_calculator": {
++              "adjust_days": 0,
++              "expiry_calculator": "MonthlyExpiryCalculator",
++              "expiry_ways": {
++                "day": "FRI",
++                "way": "Weekly"
++              },
++              "roll_back": true,
++              "roll_frequency": 2
++            }
++          }
++        }
++      ],
++      "index_id": "SPYCollarHarvest",
++      "interest_rate_spec": {
++        "borrowing_rate": {
++          "rate": 0,
++          "type": "constant"
++        },
++        "lending_rate": {
++          "rate": 0,
++          "type": "constant"
++        }
++      },
++      "portfolio_date_type": "ROLL",
++      "starting_cash": 0,
++      "transaction_cost_spec": {
++        "individual_transaction_cost": {},
++        "pool_cash": false,
++        "transaction_cost_activated": false
++      },
++      "underlying_assets": [
++        {
++          "exposure": 100,
++          "underlier": "el:LY6WH5-S:US:0"
++        }
++      ]
++    }
++  },
++  "index_class_code": "option-strategies-index"
++}
+diff --git a/python/merq/indices/merqube/options/strategies/spec.py b/python/merq/indices/merqube/options/strategies/spec.py
+index fadbe21ea..276008582 100644
+--- a/python/merq/indices/merqube/options/strategies/spec.py
++++ b/python/merq/indices/merqube/options/strategies/spec.py
+@@ -109,12 +109,18 @@ class OptionGroup(BaseModel):
+         expiry_calculator = self.rebalancer.expiry_calculator
+         if not expiry_calculator.roll_frequency % self.number_of_tranches == 0:
+             raise ValueError("The roll frequency of the rebalancer should be a multiple of the number of tranches")
+-        if (
+-            isinstance(expiry_calculator, MonthlyExpiryCalculator)
+-            and expiry_calculator.roll_frequency == 12
+-            and self.number_of_tranches != 1
+-        ):
+-            raise ValueError("Cannot use tranching if you are using annually expiring options")
++        # LOCAL BACKTEST BYPASS — DO NOT COMMIT. See ANNUAL_TRANCHING.md.
++        # With this check off, two constraints are no longer enforced and must be held by hand.
++        # Violating either fails at calculation time with MissingDataError, not here:
++        #   1. init_date must be a third Friday in Mar/Jun/Sep/Dec. A 4-tranche annual ladder
++        #      anchored to Jan lands on Jan/Apr/Jul/Oct, and Apr/Jul/Oct have no 12-month expiries.
++        #   2. Backtests must start no earlier than 2013. The Mar 2012 tranche has no contract.
++        # if (
++        #     isinstance(expiry_calculator, MonthlyExpiryCalculator)
++        #     and expiry_calculator.roll_frequency == 12
++        #     and self.number_of_tranches != 1
++        # ):
++        #     raise ValueError("Cannot use tranching if you are using annually expiring options")
+ 
+     def expand_for_tranches(self, cbd: pd.offsets.CustomBusinessDay, n: int) -> list[OptionTranche]:
+         expanded_groups = []
+diff --git a/python/merq/merq_platform/api/data_types/index_data/positions/option/option_position.py b/python/merq/merq_platform/api/data_types/index_data/positions/option/option_position.py
+index e42b8cd59..a3884dcde 100644
+--- a/python/merq/merq_platform/api/data_types/index_data/positions/option/option_position.py
++++ b/python/merq/merq_platform/api/data_types/index_data/positions/option/option_position.py
+@@ -75,6 +75,10 @@ class RollingOptionPosition(OptionPosition):
+     # selection/rebalance for this option position
+     rebalance_date: PdTimestamp
+     selection_date: PdTimestamp
++    # Only stamped when a position is opened off-schedule (e.g. a harvested put re-struck
++    # mid-cycle). Positions opened by the normal roll leave this None and their entry date
++    # is derived from the roll schedule instead.
++    entry_date: PdTimestamp | None = None
+ 
+     def __repr__(self) -> str:
+         return f"{self.merq_id}, shares: {self.shares}, rebalance : {self.rebalance_date.strftime('%Y-%m-%d')}, selection : {self.selection_date.strftime('%Y-%m-%d')}"
+diff --git a/python/merq/merq_platform/api/indices/multi_asset/standard_multi_asset_index.py b/python/merq/merq_platform/api/indices/multi_asset/standard_multi_asset_index.py
+index 61452428f..8dce93308 100644
+--- a/python/merq/merq_platform/api/indices/multi_asset/standard_multi_asset_index.py
++++ b/python/merq/merq_platform/api/indices/multi_asset/standard_multi_asset_index.py
+@@ -49,6 +49,9 @@ class StandardMultiAssetIndex(MultiAssetBaseIndex, ABC):
+             calc_date=calc_date, fetched_prices={calc_date: close_prices}, open_prices=open_prices
+         )
+         todays_portfolio = self.execute_pre_level_calc_step(todays_portfolio, todays_prices, calc_date)
++        # The step may have opened positions and priced them, so re-read rather than keeping the
++        # snapshot taken above -- create_post_close below is given these prices directly.
++        close_prices = todays_prices.close_prices
+         returns = self.compute_index_level(todays_portfolio, todays_prices, calc_date)
+ 
+         todays_post_close_portfolio, final_recipes = self.create_post_close(
+diff --git a/python/tests/unit/indices/merqube/options/merq_option_strategies/test_restrike_treatment.py b/python/tests/unit/indices/merqube/options/merq_option_strategies/test_restrike_treatment.py
+new file mode 100644
+index 000000000..ac74cb051
+--- /dev/null
++++ b/python/tests/unit/indices/merqube/options/merq_option_strategies/test_restrike_treatment.py
+@@ -0,0 +1,253 @@
++"""Unit tests for harvest restrike cash handling."""
++
++import numpy as np
++import pandas as pd
++
++from merq.indices.merqube.options.datatypes.cash_handler.cash_handler import (
++    ZeroOutCashHandler,
++)
++from merq.indices.merqube.options.datatypes.custom_option import (
++    CustomCashPosition,
++    CustomOptionPortfolio,
++    RateCashPosition,
++)
++from merq.indices.merqube.options.datatypes.specs.rebalancing_spec import (
++    Days,
++    DayWeek,
++    MonthlyExpiryCalculator,
++    RebalanceDayWeek,
++    RebalancerSeparated,
++)
++from merq.indices.merqube.options.merq_option_strategies.early_rebalance.early_rebalance_treatment.restrike_treatment import (
++    RestrikeAtMarketEarlyRebalTreatment,
++)
++from merq.indices.merqube.options.strategies.definitions import (
++    OptionDefinition,
++    StrikeType,
++    TradeType,
++)
++from merq.indices.merqube.options.strategies.financing_strategies import (
++    KeepCashFinancing,
++)
++from merq.indices.merqube.options.strategies.spec import OptionTranche
++from merq.merq_platform.api.components.identifiers.merq_currency_id import (
++    MerqCurrencyId,
++)
++from merq.merq_platform.api.components.identifiers.merq_equity_id import (
++    MerqEquityListingId,
++)
++from merq.merq_platform.api.components.identifiers.merq_option_id import (
++    MerqOptionId,
++    OptionType,
++)
++from merq.merq_platform.api.data_types.index_data.positions.equity.equity_position import (
++    EquityPosition,
++)
++from merq.merq_platform.api.data_types.index_data.positions.option.option_position import (
++    RollingOptionPosition,
++)
++
++
++class _Price:
++    def __init__(self, px: float):
++        self.price = px
++
++    def get_close_adjusted_price(self) -> float:
++        return self.price
++
++
++class _Pricer:
++    def __init__(self, prices: dict):
++        self._prices = prices
++
++    def load_prices_for_merq_ids(self, merq_ids, price_date):
++        del price_date
++        return {merq_id: self._prices[merq_id] for merq_id in merq_ids}
++
++
++def _put_tranche(underlier_id: MerqEquityListingId) -> OptionTranche:
++    return OptionTranche(
++        uuid=1,
++        options=[
++            OptionDefinition(
++                underlier_id=underlier_id,
++                option_type=OptionType.PUT,
++                trade_type=TradeType.BUY,
++                strike_type=StrikeType.PCT_SPOT,
++                strike_value=100,
++                exposure=100,
++            )
++        ],
++        financing_strategy=KeepCashFinancing(),
++        cash_handler=ZeroOutCashHandler(reinvestment_underlier=underlier_id),
++        rebalancer=RebalancerSeparated(
++            expiry_calculator=MonthlyExpiryCalculator(
++                roll_frequency=12,
++                expiry_ways=RebalanceDayWeek(day_week=DayWeek(week=3, day=Days.FRI)),
++            ),
++            init_date=pd.Timestamp("2013-03-15"),
++        ),
++    )
++
++
++def _option_id(strike: float, expiry: pd.Timestamp) -> MerqOptionId:
++    return MerqOptionId(
++        strike=strike,
++        expiry=expiry,
++        option_type=OptionType.PUT,
++        root="SPY",
++        mic="OPRA",
++    )
++
++
++def test_harvest_pays_new_put_then_reinvests_leftover_in_underlier():
++    """Sale proceeds minus new-put cost go into the underlier; cash bucket is not credited the gross sale."""
++    underlier_id = MerqEquityListingId(fsym_id="LY6WH5-S", country_code="US")
++    expiry = pd.Timestamp("2025-12-19")
++    harvest_date = pd.Timestamp("2025-06-20")
++    old_put = _option_id(strike=120, expiry=expiry)
++    new_put = _option_id(strike=100, expiry=expiry)
++    currency_id = MerqCurrencyId("USD")
++
++    portfolio = CustomOptionPortfolio(
++        portfolio_date=harvest_date,
++        positions={
++            old_put: RollingOptionPosition(
++                merq_id=old_put,
++                rebalance_date=expiry,
++                selection_date=expiry,
++                shares=2,
++                currency="USD",
++                rebalance_weight=1,
++                strategy_id=1,
++            ),
++            underlier_id: EquityPosition(merq_id=underlier_id, shares=10),
++            currency_id: CustomCashPosition(
++                merq_id=currency_id,
++                cash_buckets={1: RateCashPosition(cash_amount=-3, uuid=1)},
++            ),
++        },
++    )
++    pricer = _Pricer(
++        {
++            underlier_id: _Price(100),
++            old_put: _Price(10),
++            new_put: _Price(4),
++        }
++    )
++    treatment = RestrikeAtMarketEarlyRebalTreatment()
++    treatment._find_restruck_contract = lambda **kwargs: new_put  # noqa: ARG005
++
++    new_portfolio, rebalance = treatment.apply_early_rebalance(
++        portfolio=portfolio,
++        pricer=pricer,
++        cbd=pd.offsets.CustomBusinessDay(),
++        tranche_spec=_put_tranche(underlier_id),
++    )
++
++    leftover = 2 * 10 - 2 * 4
++    assert rebalance is None
++    assert old_put not in new_portfolio.positions
++    assert new_put in new_portfolio.positions
++    assert new_portfolio.positions[new_put].shares == 2
++    assert new_portfolio.positions[new_put].entry_date == harvest_date
++    assert np.isclose(new_portfolio.positions[underlier_id].shares, 10 + leftover / 100)
++    assert np.isclose(new_portfolio.positions[currency_id].cash_buckets[1].cash_amount, -3)
++    assert 0 not in new_portfolio.positions[currency_id].cash_buckets
++
++
++def test_harvest_creates_missing_tranche_cash_bucket_instead_of_uuid_zero():
++    """An absent tranche bucket is created under that uuid so the selector does not see an empty unscheduled tranche."""
++    underlier_id = MerqEquityListingId(fsym_id="LY6WH5-S", country_code="US")
++    expiry = pd.Timestamp("2025-12-19")
++    harvest_date = pd.Timestamp("2025-06-20")
++    old_put = _option_id(strike=120, expiry=expiry)
++    new_put = _option_id(strike=100, expiry=expiry)
++    currency_id = MerqCurrencyId("USD")
++
++    portfolio = CustomOptionPortfolio(
++        portfolio_date=harvest_date,
++        positions={
++            old_put: RollingOptionPosition(
++                merq_id=old_put,
++                rebalance_date=expiry,
++                selection_date=expiry,
++                shares=1,
++                currency="USD",
++                rebalance_weight=1,
++                strategy_id=1,
++            ),
++            underlier_id: EquityPosition(merq_id=underlier_id, shares=5),
++            currency_id: CustomCashPosition(
++                merq_id=currency_id,
++                cash_buckets={0: RateCashPosition(cash_amount=0, uuid=0)},
++            ),
++        },
++    )
++    pricer = _Pricer(
++        {
++            underlier_id: _Price(100),
++            old_put: _Price(8),
++            new_put: _Price(3),
++        }
++    )
++    treatment = RestrikeAtMarketEarlyRebalTreatment()
++    treatment._find_restruck_contract = lambda **kwargs: new_put  # noqa: ARG005
++
++    new_portfolio, rebalance = treatment.apply_early_rebalance(
++        portfolio=portfolio,
++        pricer=pricer,
++        cbd=pd.offsets.CustomBusinessDay(),
++        tranche_spec=_put_tranche(underlier_id),
++    )
++
++    assert rebalance is None
++    cash_buckets = new_portfolio.positions[currency_id].cash_buckets
++    assert 1 in cash_buckets
++    assert np.isclose(cash_buckets[0].cash_amount, 0)
++    assert np.isclose(cash_buckets[1].cash_amount, 0)
++    assert cash_buckets[1].maturity_date == expiry
++
++
++def test_harvest_parks_proceeds_when_scheduled_roll_is_imminent():
++    """If the tranche rolls within nb_days_to_reenter, close at market and do not re-strike."""
++    underlier_id = MerqEquityListingId(fsym_id="LY6WH5-S", country_code="US")
++    harvest_date = pd.Timestamp("2025-06-20")
++    expiry = harvest_date
++    old_put = _option_id(strike=120, expiry=expiry)
++    currency_id = MerqCurrencyId("USD")
++
++    portfolio = CustomOptionPortfolio(
++        portfolio_date=harvest_date,
++        positions={
++            old_put: RollingOptionPosition(
++                merq_id=old_put,
++                rebalance_date=expiry,
++                selection_date=expiry,
++                shares=2,
++                currency="USD",
++                rebalance_weight=1,
++                strategy_id=1,
++            ),
++            underlier_id: EquityPosition(merq_id=underlier_id, shares=10),
++            currency_id: CustomCashPosition(
++                merq_id=currency_id,
++                cash_buckets={1: RateCashPosition(cash_amount=0, uuid=1)},
++            ),
++        },
++    )
++    pricer = _Pricer({underlier_id: _Price(100), old_put: _Price(10)})
++    treatment = RestrikeAtMarketEarlyRebalTreatment()
++
++    new_portfolio, rebalance = treatment.apply_early_rebalance(
++        portfolio=portfolio,
++        pricer=pricer,
++        cbd=pd.offsets.CustomBusinessDay(),
++        tranche_spec=_put_tranche(underlier_id),
++    )
++
++    assert rebalance is None
++    assert old_put not in new_portfolio.positions
++    assert np.isclose(new_portfolio.positions[underlier_id].shares, 10)
++    assert np.isclose(new_portfolio.positions[currency_id].cash_buckets[1].cash_amount, 20)
++    assert new_portfolio.positions[currency_id].cash_buckets[1].maturity_date == expiry
+-- 
+2.54.0
+
